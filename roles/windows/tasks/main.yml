@@ -1,0 +1,14 @@
+- name: Install all updates and reboot as many times as needed
+  win_updates:
+    category_names: '*'
+    reboot: yes
+
+- name: Remove Windows Defender
+  win_feature:
+    name: Windows-Defender
+    state: absent
+  register: win_feature
+
+- name: Reboot if required after removing Window Defender
+  win_reboot:
+  when: win_feature.reboot_required

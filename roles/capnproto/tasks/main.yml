@@ -1,0 +1,14 @@
+
+- name: download
+  win_get_url:
+    url: https://capnproto.org/capnproto-c++-win32-1.0.2.zip
+    dest: c:\windows\temp\capnproto-c++-win32-1.0.2.zip
+
+- name: extract
+  win_command: powershell -command "Expand-Archive c:\\windows\\temp\\capnproto-c++-win32-1.0.2.zip c:\\windows\\temp"
+
+- name: move
+  win_copy:
+    src: c:\windows\temp\capnproto-tools-win32-1.0.2\
+    dest: c:\windows\system32
+    remote_src: true

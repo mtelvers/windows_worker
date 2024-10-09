@@ -1,0 +1,12 @@
+---
+
+- hosts: workers
+  roles:
+    #- windows
+    #- docker
+    #- prometheus
+    #- cygwin
+    #- capnproto
+    #- opam
+    - worker
+

@@ -1,0 +1,4 @@
+{
+    "exec-opts": ["isolation=hyperv"],
+    "experimental": true
+}

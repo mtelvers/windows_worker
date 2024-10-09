@@ -1,0 +1,50 @@
+---
+
+- name: set var
+  set_fact: builder_pool="windows-x86_64"
+
+- name: set var
+  set_fact: builder_pool="windows-x86_64"
+  when: "'2022' in inventory_hostname"
+
+- name: set var
+  set_fact: builder_pool="windows-1809-x86_64"
+  when: "'2019' in inventory_hostname"
+
+- name: clone git repo
+  win_command: git clone --recursive https://github.com/ocurrent/ocluster c:\ocluster
+  args:
+    creates: c:\ocluster
+
+- name: create opam switch
+  win_command: bash --login -c "cd /cygwin/c/ocluster && opam switch create . 4.14.2 --deps-only --with-test -y"
+  args:
+    creates: c:\ocluster\_opam
+
+- name: build
+  win_command: bash --login -c "cd /cygwin/c/ocluster && dune build"
+  args:
+    creates: c:\ocluster\_build
+
+- name: Copy capability file
+  win_copy:
+    src: secrets/pool-{{ builder_pool }}.cap
+    dest: C:\windows\pool-{{ builder_pool }}.cap
+
+- name: move
+  win_copy:
+    src: c:\ocluster\_build\install\default\bin\
+    dest: c:\windows\system32
+    remote_src: true
+
+- name: Register ocluster-worker service
+  win_service:
+    name: ocluster-worker
+    start_mode: delayed
+    path: C:\windows\system32\ocluster-worker.exe --state-dir=c:\state --name={{ inventory_hostname_short | lower }} --capacity={{ (ansible_processor_count / 4) | int }} --prune-threshold=10 --allow-push=ocurrent/opam-staging --connect=c:\windows\pool-{{ builder_pool }}.cap --obuilder-store=docker:\obuilder --verbosity=info --docker-isolation process
+
+- name: Start ocluster-worker service
+  win_service:
+    name: ocluster-worker
+    state: started
+

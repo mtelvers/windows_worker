@@ -1,0 +1,20 @@
+
+- name: Download Git for Windows
+  win_get_url:
+    url: https://github.com/git-for-windows/git/releases/download/v2.43.0.windows.1/Git-2.43.0-64-bit.exe
+    dest: c:\windows\temp\Git.exe
+
+- name: Install Git for Windows
+  win_command: c:\windows\temp\Git.exe /VERYSILENT /NORESTART
+
+- name: Add Git to PATH
+  win_path:
+    elements:
+      - c:\Program Files\Git\cmd
+
+- name: Reboot after Git installation
+  win_reboot:
+
+- name: Configure git to accept long paths
+  win_command: git config --system core.longpaths true
+

@@ -1,0 +1,26 @@
+
+- name: ensure c:\cygwin64
+  win_file:
+    path: c:\cygwin64
+    state: directory
+
+- name: download
+  win_get_url:
+    url: https://www.cygwin.com/setup-x86_64.exe
+    dest: c:\cygwin64\setup-x86_64.exe
+
+- name: install
+  win_package:
+    path: c:\cygwin64\setup-x86_64.exe
+    arguments: -q -O -s https://cygwin.mirror.uk.sargasso.net -P mingw64-x86_64-gcc-core,rsync,make,patch,unzip,graphviz,pkgconf,pkg-config,libgmp-devel,mingw64-x86_64-gmp,mingw64-x86_64-libffi,mingw64-x86_64-sqlite3
+
+- name: add to PATH
+  win_path:
+    elements:
+      - 'C:\cygwin64\bin'
+      - 'C:\cygwin64\usr\x86_64-w64-mingw32\sys-root\mingw\bin'
+
+- name: set noacl in /etc/fstab
+  win_command: >-
+    c:\cygwin64\bin\bash.exe --login -c "awk -i inplace -vN='noacl,' '/(^#)|(^$)/{print; next}{$4=N$4; print}' /etc/fstab"
+

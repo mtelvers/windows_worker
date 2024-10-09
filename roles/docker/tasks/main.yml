@@ -1,0 +1,48 @@
+
+- name: Install Windows Features
+  win_feature:
+    name: "{{ item }}"
+    state: present
+    include_sub_features: no
+    include_management_tools: no
+  with_items:
+    - Hyper-V
+    - Containers
+
+- name: Reboot after installing features
+  win_reboot:
+
+- name: Download Docker Engine Installer
+  win_get_url:
+    url: https://raw.githubusercontent.com/microsoft/Windows-Containers/Main/helpful_tools/Install-DockerCE/install-docker-ce.ps1
+    dest: c:\windows\temp\install-docker-ce.ps1
+
+- name: Install Docker Engine
+  win_shell: c:\windows\temp\install-docker-ce.ps1 -HyperV
+
+- name: Download WinCred to Windows\System32
+  win_get_url:
+    url: https://github.com/docker/docker-credential-helpers/releases/download/v0.8.0/docker-credential-wincred-v0.8.0.windows-amd64.exe
+    dest: c:\windows\system32\docker-credential-wincred.exe
+
+- name: Create cli-plugins directory if it does not exist
+  win_file:
+    path: c:\ProgramData\Docker\cli-plugins
+    state: directory
+
+- name: Download Docker Buildx
+  win_get_url:
+    url: https://github.com/docker/buildx/releases/download/v0.12.1/buildx-v0.12.1.windows-amd64.exe
+    dest: c:\ProgramData\Docker\cli-plugins\buildx-v0.12.1.windows-amd64.exe
+
+- name: Copy daemon.json
+  win_copy:
+    src: daemon.json
+    dest: C:\ProgramData\docker\config\daemon.json
+
+- name: Set service startup mode to auto and ensure it is started
+  win_service:
+    name: docker
+    start_mode: auto
+    state: started
+
