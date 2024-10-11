@@ -14,11 +14,13 @@
     path: c:\cygwin64\setup-x86_64.exe
     arguments: -q -O -s https://cygwin.mirror.uk.sargasso.net -P mingw64-x86_64-gcc-core,rsync,make,patch,unzip,graphviz,pkgconf,pkg-config,libgmp-devel,mingw64-x86_64-gmp,mingw64-x86_64-libffi,mingw64-x86_64-sqlite3
 
-- name: add to PATH
-  win_path:
-    elements:
-      - 'C:\cygwin64\bin'
-      - 'C:\cygwin64\usr\x86_64-w64-mingw32\sys-root\mingw\bin'
+- name: get current PATH
+  raw: $ENV:PATH
+  register: path_out
+
+- name: add to PATH (Cygwin must be first)
+  raw: setx /m PATH "C:\\cygwin64\\bin;C:\\cygwin64\\usr\\x86_64-w64-mingw32\\sys-root\\mingw\\bin;$ENV:PATH"
+  when: path_out.stdout.find('cygwin64') == -1
 
 - name: set noacl in /etc/fstab
   win_command: >-
