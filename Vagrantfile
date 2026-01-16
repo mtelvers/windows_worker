@@ -14,27 +14,27 @@ Vagrant.configure("2") do |config|
   end
 
   # Worker
-  (1..4).each do |i|
-    config.vm.define "ltsc2022-#{i}" do |ltsc2022|
-      ltsc2022.vm.box = "windows-2022-standard-core"
-      ltsc2022.vm.hostname = "ltsc2022-#{i}"
-      ltsc2022.vm.provider :libvirt do |libvirt|
+  (1..2).each do |i|
+    config.vm.define "ltsc2025-#{i}" do |ltsc2025|
+      ltsc2025.vm.box = "windows-2025-standard-core"
+      ltsc2025.vm.hostname = "ltsc2025-#{i}"
+      ltsc2025.vm.provider :libvirt do |libvirt|
         libvirt.memory = "32768"
         libvirt.cpus = "8"
-        libvirt.machine_virtual_size = 120
+        libvirt.machine_virtual_size = 240
       end
     end
   end
 
   # Worker 2019
-  (1..4).each do |i|
-    config.vm.define "ltsc2019-#{i}" do |ltsc2022|
-      ltsc2022.vm.box = "windows-2019-standard-core"
-      ltsc2022.vm.hostname = "ltsc2019-#{i}"
-      ltsc2022.vm.provider :libvirt do |libvirt|
+  (1..2).each do |i|
+    config.vm.define "ltsc2019-#{i}" do |ltsc2019|
+      ltsc2019.vm.box = "windows-2019-standard-core"
+      ltsc2019.vm.hostname = "ltsc2019-#{i}"
+      ltsc2019.vm.provider :libvirt do |libvirt|
         libvirt.memory = "32768"
         libvirt.cpus = "8"
-        libvirt.machine_virtual_size = 120
+        libvirt.machine_virtual_size = 240
       end
     end
   end

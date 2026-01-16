@@ -1,0 +1,54 @@
+---
+
+- name: Set builder pool for Windows 2025
+  set_fact: builder_pool="windows-x86_64"
+  when: "'2025' in inventory_hostname"
+
+- name: Set builder pool for Windows 2019
+  set_fact: builder_pool="windows-1809-x86_64"
+  when: "'2019' in inventory_hostname"
+
+- name: Clone ocluster repo
+  win_command: git clone --recursive https://github.com/ocurrent/ocluster c:\ocluster
+  args:
+    creates: c:\ocluster
+
+- name: Create opam switch and install dependencies
+  win_command: opam switch create . 4.14.2 --deps-only -y
+  args:
+    chdir: c:\ocluster
+    creates: c:\ocluster\_opam
+
+- name: Add mingw bin to system PATH
+  win_path:
+    elements:
+      - c:\users\administrator\appdata\local\opam\.cygwin\root\usr\x86_64-w64-mingw32\sys-root\mingw\bin
+    scope: machine
+
+- name: Build ocluster-worker with dune
+  win_command: opam exec -- dune build bin/worker.exe
+  args:
+    chdir: c:\ocluster
+    creates: c:\ocluster\_build\default\bin\worker.exe
+
+- name: Copy ocluster-worker to system32
+  win_copy:
+    src: c:\ocluster\_build\default\bin\worker.exe
+    dest: c:\windows\system32\ocluster-worker.exe
+    remote_src: true
+
+- name: Copy capability file
+  win_copy:
+    src: secrets/pool-{{ builder_pool }}.cap
+    dest: c:\windows\pool-{{ builder_pool }}.cap
+
+- name: Register ocluster-worker service
+  win_service:
+    name: ocluster-worker
+    start_mode: delayed
+    path: c:\windows\system32\ocluster-worker.exe --state-dir=c:\state --name={{ inventory_hostname_short | lower }} --capacity={{ ansible_processor_count }} --prune-threshold=10 --allow-push=ocurrent/opam-staging --connect=c:\windows\pool-{{ builder_pool }}.cap --obuilder-store=docker:\obuilder --verbosity=info
+
+- name: Start ocluster-worker service
+  win_service:
+    name: ocluster-worker
+    state: started
