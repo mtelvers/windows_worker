@@ -1,10 +1,10 @@
 ---
 
-- hosts: workers
+- hosts: all
   roles:
     - windows
     - docker
     - git
     - opam
     - capnproto
-    - worker-native
+    - worker

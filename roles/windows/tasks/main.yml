@@ -1,3 +1,16 @@
+- name: Remove recovery partition if present
+  win_shell: |
+    $RecoveryPartition = Get-Partition -DiskNumber 0 | Where-Object { $_.Type -eq 'Recovery' -or ($_.DriveLetter -eq $null -and $_.Size -lt 1GB) }
+    if ($RecoveryPartition) { Remove-Partition -DiskNumber 0 -PartitionNumber $RecoveryPartition.PartitionNumber -Confirm:$false }
+  ignore_errors: yes
+
+- name: Extend C partition to use all available space
+  win_shell: |
+    $MaxSize = (Get-PartitionSupportedSize -DriveLetter C).SizeMax
+    $CurrentSize = (Get-Partition -DriveLetter C).Size
+    if ($MaxSize -gt $CurrentSize) { Resize-Partition -DriveLetter C -Size $MaxSize }
+  ignore_errors: yes
+
 - name: Install all updates and reboot as many times as needed
   win_updates:
     category_names: '*'
@@ -12,3 +25,43 @@
 - name: Reboot if required after removing Window Defender
   win_reboot:
   when: win_feature.reboot_required
+
+- name: Ensure Windows Update service is running for capability install
+  win_service:
+    name: wuauserv
+    state: started
+
+- name: Install OpenSSH Server capability
+  win_shell: |
+    $sshCapability = Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH.Server*'
+    if ($sshCapability.State -ne 'Installed') {
+      Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+    }
+  register: openssh_install
+
+- name: Start and enable sshd service
+  win_service:
+    name: sshd
+    start_mode: auto
+    state: started
+
+- name: Allow SSH through firewall
+  win_firewall_rule:
+    name: OpenSSH Server (sshd)
+    localport: 22
+    action: allow
+    direction: in
+    protocol: tcp
+    state: present
+    enabled: yes
+
+- name: Create ssh directory in ProgramData
+  win_file:
+    path: C:\ProgramData\ssh
+    state: directory
+
+- name: Download and install SSH authorized keys for administrator
+  win_shell: |
+    $keys = Invoke-WebRequest -Uri 'https://github.com/mtelvers.keys' -UseBasicParsing
+    Set-Content -Path 'C:\ProgramData\ssh\administrators_authorized_keys' -Value $keys.Content -NoNewline
+    icacls 'C:\ProgramData\ssh\administrators_authorized_keys' /inheritance:r /grant 'Administrators:F' /grant 'SYSTEM:F'
