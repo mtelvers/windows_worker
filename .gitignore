@@ -1,1 +1,16 @@
 secrets/
+
+# Large provisioning images (downloaded, not versioned)
+*.ISO
+*.iso
+
+# Generated provisioning artifacts
+autounattend.xml
+.windows-installed*
+
+# Vagrant state (no longer used; kept ignored for safety)
+.vagrant/
+
+# Logs and captured session transcripts
+*.log
+*.jsonl

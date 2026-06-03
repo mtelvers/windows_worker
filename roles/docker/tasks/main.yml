@@ -20,30 +20,10 @@
 - name: Install Docker Engine
   win_shell: c:\windows\temp\install-docker-ce.ps1 -HyperV
 
-- name: Download WinCred to Windows\System32
-  win_get_url:
-    url: https://github.com/docker/docker-credential-helpers/releases/download/v0.8.0/docker-credential-wincred-v0.8.0.windows-amd64.exe
-    dest: c:\windows\system32\docker-credential-wincred.exe
-
-- name: Create Docker config directory for LocalSystem
+- name: Remove docker-credential-wincred if present
   win_file:
-    path: C:\Windows\System32\config\systemprofile\.docker
-    state: directory
-
-- name: Disable credential helper for LocalSystem (wincred doesn't work for services)
-  win_copy:
-    content: '{"credsStore": ""}'
-    dest: C:\Windows\System32\config\systemprofile\.docker\config.json
-
-- name: Create Docker config directory for Administrator
-  win_file:
-    path: C:\Users\Administrator\.docker
-    state: directory
-
-- name: Disable credential helper for Administrator
-  win_copy:
-    content: '{"credsStore": ""}'
-    dest: C:\Users\Administrator\.docker\config.json
+    path: c:\windows\system32\docker-credential-wincred.exe
+    state: absent
 
 - name: Create cli-plugins directory if it does not exist
   win_file:

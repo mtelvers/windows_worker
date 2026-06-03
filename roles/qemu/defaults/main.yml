@@ -1,0 +1,24 @@
+---
+
+winver: "2025"
+qemu_mem: "96G"
+qemu_smp: 16
+
+vms:
+  - name: ltsc2025-1
+    disk: /dev/sdc
+    winrm_port: 5985
+    ssh_port: 60022
+    vnc_display: 0
+
+iso_names:
+  "2019": "SW_DVD9_Win_Server_STD_CORE_2019_1809.19_64Bit_English_DC_STD_MLF_X23-31944.ISO"
+  "2022": "SW_DVD9_Win_Server_STD_CORE_2022_2108.24_64Bit_English_DC_STD_MLF_X23-54269.ISO"
+  "2025": "SW_DVD9_Win_Server_STD_CORE_2025_24H2.7_64Bit_English_DC_STD_MLF_X24-06125.ISO"
+
+virtio_driver_dirs:
+  "2019": "2k19"
+  "2022": "2k22"
+  "2025": "2k25"
+
+virtio_win_url: "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.262-2/virtio-win.iso"

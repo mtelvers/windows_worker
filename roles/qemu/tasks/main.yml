@@ -1,0 +1,104 @@
+---
+
+- name: Check if VirtIO ISO already exists
+  stat:
+    path: "{{ playbook_dir }}/virtio-win.ISO"
+  register: virtio_iso
+
+- name: Download VirtIO drivers
+  get_url:
+    url: "{{ virtio_win_url }}"
+    dest: "{{ playbook_dir }}/virtio-win.ISO"
+  when: not virtio_iso.stat.exists
+
+- name: Template autounattend.xml
+  template:
+    src: autounattend.xml.j2
+    dest: "{{ playbook_dir }}/autounattend.xml"
+
+- name: Create unattend ISO
+  command: mkisofs -o {{ playbook_dir }}/unattend.iso -r -J {{ playbook_dir }}/autounattend.xml
+  args:
+    creates: "{{ playbook_dir }}/unattend.iso"
+
+- name: Install Windows onto disk
+  become: yes
+  command: >
+    qemu-system-x86_64
+    -m {{ qemu_mem }} -smp {{ qemu_smp }}
+    -machine accel=kvm,type=pc -cpu host
+    -display none -vnc :{{ item.vnc_display }}
+    -netdev user,id=net0 -device virtio-net,netdev=net0
+    -drive file={{ item.disk }},format=raw,if=virtio
+    -drive file={{ playbook_dir }}/{{ iso_names[winver] }},media=cdrom
+    -drive file={{ playbook_dir }}/unattend.iso,media=cdrom
+    -drive file={{ playbook_dir }}/virtio-win.ISO,media=cdrom
+  args:
+    creates: "{{ playbook_dir }}/.windows-installed-{{ item.name }}"
+  loop: "{{ vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Mark installation complete
+  file:
+    path: "{{ playbook_dir }}/.windows-installed-{{ item.name }}"
+    state: touch
+  loop: "{{ vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Check if VM is already running
+  command: pgrep -f "qemu-system.*{{ item.disk }}"
+  register: qemu_running
+  failed_when: false
+  changed_when: false
+  loop: "{{ vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Boot Windows VM
+  become: yes
+  shell: >
+    nohup qemu-system-x86_64
+    -m {{ qemu_mem }} -smp {{ qemu_smp }}
+    -machine accel=kvm,type=pc -cpu host
+    -display none -vnc :{{ item.item.vnc_display }}
+    -netdev user,id=net0,hostfwd=tcp::{{ item.item.winrm_port }}-:5985,hostfwd=tcp::{{ item.item.ssh_port }}-:22
+    -device virtio-net,netdev=net0
+    -drive file={{ item.item.disk }},format=raw,if=virtio
+    </dev/null >/dev/null 2>&1 &
+  when: item.rc != 0
+  loop: "{{ qemu_running.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Wait for WinRM to become available
+  wait_for:
+    host: 127.0.0.1
+    port: "{{ item.winrm_port }}"
+    timeout: 300
+  loop: "{{ vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Wait for WinRM to be fully ready
+  pause:
+    seconds: 30
+
+- name: Add Windows VM to inventory
+  add_host:
+    name: "{{ item.name }}"
+    groups: workers
+    ansible_host: 127.0.0.1
+    ansible_port: "{{ item.winrm_port }}"
+    ansible_user: administrator
+    ansible_password: vagrant
+    ansible_connection: winrm
+    ansible_winrm_scheme: http
+    ansible_winrm_server_cert_validation: ignore
+    ansible_winrm_connection_timeout: 120
+    ansible_winrm_operation_timeout_sec: 120
+    ansible_winrm_read_timeout_sec: 120
+  loop: "{{ vms }}"
+  loop_control:
+    label: "{{ item.name }}"

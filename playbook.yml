@@ -1,10 +1,17 @@
 ---
 
-- hosts: all
+- hosts: localhost
+  connection: local
+  roles:
+    - qemu
+
+- hosts: workers
   roles:
     - windows
     - docker
+    - containerd
     - git
     - opam
     - capnproto
+    - hcn-namespace
     - worker

@@ -1,7 +1,7 @@
 
 - name: Download Git for Windows
   win_get_url:
-    url: https://github.com/git-for-windows/git/releases/download/v2.43.0.windows.1/Git-2.43.0-64-bit.exe
+    url: https://github.com/git-for-windows/git/releases/download/v2.50.0.windows.1/Git-2.50.0-64-bit.exe
     dest: c:\windows\temp\Git.exe
 
 - name: Install Git for Windows

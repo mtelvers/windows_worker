@@ -6,6 +6,6 @@
     dest: c:\windows\system32\opam.exe
 
 - name: Initialize opam (installs managed Cygwin)
-  win_shell: opam init --bare -y https://opam-4.ocaml.org
+  win_shell: opam init --bare -y
   args:
-    creates: c:\Users\vagrant\AppData\Local\opam
+    creates: c:\Users\Administrator\AppData\Local\opam

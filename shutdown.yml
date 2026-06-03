@@ -1,0 +1,7 @@
+---
+
+- hosts: all
+  tasks:
+    - name: Shutdown
+      win_command: shutdown -s -t 0 -f
+

@@ -1,0 +1,24 @@
+---
+
+- name: Clone hcn-namespace repo
+  win_command: git clone https://github.com/mtelvers/hcn-namespace c:\hcn-namespace
+  args:
+    creates: c:\hcn-namespace
+
+- name: Create opam switch and install hcn-namespace dependencies
+  win_command: opam switch create . 4.14.2 --deps-only -y
+  args:
+    chdir: c:\hcn-namespace
+    creates: c:\hcn-namespace\_opam
+
+- name: Build hcn-namespace with dune
+  win_command: opam exec -- dune build
+  args:
+    chdir: c:\hcn-namespace
+    creates: c:\hcn-namespace\_build\default\hcn_namespace.exe
+
+- name: Copy hcn-namespace to system32
+  win_copy:
+    src: c:\hcn-namespace\_build\default\hcn_namespace.exe
+    dest: c:\windows\system32\hcn-namespace.exe
+    remote_src: true

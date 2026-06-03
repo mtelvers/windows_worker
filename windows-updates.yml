@@ -1,0 +1,8 @@
+---
+
+- hosts: all
+  tasks:
+    - name: Install all updates and reboot as many times as needed
+      win_updates:
+        category_names: '*'
+        reboot: yes
