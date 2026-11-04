@@ -23,7 +23,21 @@
 - name: Install all updates and reboot as many times as needed
   win_updates:
     category_names: '*'
+    # Defender definition updates are the one thing here that reliably breaks
+    # provisioning. KB2267602 fails with WU_E_DS_LOCKTIMEOUTEXPIRED ("the data
+    # store section could not be locked within the allotted time") and takes
+    # the rest of the batch down with it as UPDATE_NOT_PROCESSED and
+    # ERROR_INVALID_STATE. Seen on both ltsc2025-6 builds, 2026-11-04. The very
+    # next task removes Windows Defender outright, so installing its
+    # definitions is wasted work that can only fail.
+    reject_list:
+      - 'Security Intelligence Update'
+      - 'Microsoft Defender Antivirus'
     reboot: yes
+  register: win_updates_result
+  until: win_updates_result is succeeded
+  retries: 2
+  delay: 120
 
 - name: Remove Windows Defender
   win_feature:
