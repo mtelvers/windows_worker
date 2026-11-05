@@ -54,13 +54,14 @@
 - name: Install Windows onto disk
   become: yes
   command: >
+    {{ ('numactl --cpunodebind=' ~ item.numa_node ~ ' --preferred=' ~ item.numa_node) if item.numa_node is defined else '' }}
     qemu-system-x86_64
     -m {{ qemu_mem }} -smp {{ qemu_smp }}
     -machine accel=kvm,type={{ 'q35' if uefi is defined else 'pc' }} -cpu host
     {{ ('-drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd -drive if=pflash,format=raw,file=' ~ playbook_dir ~ '/OVMF_VARS-' ~ item.name ~ '.fd') if uefi is defined else '' }}
     -display none -vnc :{{ item.vnc_display }}
     -netdev user,id=net0 -device virtio-net,netdev=net0
-    -drive file={{ item.disk }},format=raw,if=virtio
+    -drive file={{ item.disk }},format=raw,if=virtio,cache=none
     -drive file={{ playbook_dir }}/{{ iso_names[winver] }},media=cdrom
     -drive file={{ playbook_dir }}/unattend.iso,media=cdrom
     -drive file={{ playbook_dir }}/virtio-win.ISO,media=cdrom
@@ -87,17 +88,34 @@
   loop_control:
     label: "{{ item.name }}"
 
+# numa_node is optional and per-VM. basil runs one VM per node; mint runs both
+# on node 1, which is exactly that node's worth of CPU and RAM. Omit the key
+# and qemu floats, which is what happened to basil's ltsc2025-5/-6: run.sh had
+# the binding, but provisioning starts the VM from here, so it never applied.
+#
+# --preferred, never --membind. membind is a hard wall - when the node fills,
+# the kernel OOM-kills instead of spilling, and it cannot migrate other
+# processes' anonymous pages off the node to make room. That killed a VM three
+# times on 2026-10-28, the last at 35G of its 40G. preferred keeps the VM
+# node-local while there is room and degrades to cross-node latency when there
+# is not. cpunodebind restricts these processes to the node's cores; it does
+# not reserve them.
+#
+# cache=none gives the guest O_DIRECT so the host stops shadowing, in its own
+# page cache, every block the guest already caches - and on basil, that
+# dm-cache holds a third time.
 - name: Boot Windows VM
   become: yes
   shell: >
-    nohup qemu-system-x86_64
+    nohup {{ ('numactl --cpunodebind=' ~ item.item.numa_node ~ ' --preferred=' ~ item.item.numa_node) if item.item.numa_node is defined else '' }}
+    qemu-system-x86_64
     -m {{ qemu_mem }} -smp {{ qemu_smp }}
     -machine accel=kvm,type={{ 'q35' if uefi is defined else 'pc' }} -cpu host
     {{ ('-drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd -drive if=pflash,format=raw,file=' ~ playbook_dir ~ '/OVMF_VARS-' ~ item.item.name ~ '.fd') if uefi is defined else '' }}
     -display none -vnc :{{ item.item.vnc_display }}
     -netdev user,id=net0,hostfwd=tcp::{{ item.item.winrm_port }}-:5985,hostfwd=tcp::{{ item.item.ssh_port }}-:22
     -device virtio-net,netdev=net0
-    -drive file={{ item.item.disk }},format=raw,if=virtio
+    -drive file={{ item.item.disk }},format=raw,if=virtio,cache=none
     </dev/null >/dev/null 2>&1 &
   when: item.rc != 0
   loop: "{{ qemu_running.results }}"
