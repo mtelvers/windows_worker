@@ -1,5 +1,20 @@
 ---
 
+# Catch a bad/missing vm_name here rather than three roles later. A name
+# that does not carry the Windows version leaves builder_pool undefined in
+# roles/worker, which fails long after Windows has been installed.
+- name: Validate vm_name
+  assert:
+    that:
+      - vms | length > 0
+      - vms | map(attribute='name') | select('match', '^\s*$') | list | length == 0
+      - vms | map(attribute='name') | reject('search', winver) | list | length == 0
+    fail_msg: >-
+      Every vms[].name must be non-empty and contain winver ({{ winver }}).
+      Got {{ vms | map(attribute='name') | list }}.
+      Set it with: make provision VMNAME=ltsc<winver>-N
+    success_msg: "Building {{ vms | map(attribute='name') | list | join(', ') }} (winver {{ winver }})"
+
 - name: Check if VirtIO ISO already exists
   stat:
     path: "{{ playbook_dir }}/virtio-win.ISO"
@@ -21,12 +36,28 @@
   args:
     creates: "{{ playbook_dir }}/unattend.iso"
 
+# UEFI boot via OVMF, needed for a GPT disk: MBR cannot address beyond 2 TiB,
+# which capped ltsc2025-3's 7.3 TB disk at a single 2 TiB C:. Each VM needs its
+# own writable copy of the firmware variables.
+- name: Create per-VM OVMF variables file
+  copy:
+    src: /usr/share/OVMF/OVMF_VARS_4M.fd
+    dest: "{{ playbook_dir }}/OVMF_VARS-{{ item.name }}.fd"
+    force: no
+    mode: "0644"
+  become: yes
+  loop: "{{ vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: uefi is defined
+
 - name: Install Windows onto disk
   become: yes
   command: >
     qemu-system-x86_64
     -m {{ qemu_mem }} -smp {{ qemu_smp }}
-    -machine accel=kvm,type=pc -cpu host
+    -machine accel=kvm,type={{ 'q35' if uefi is defined else 'pc' }} -cpu host
+    {{ ('-drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd -drive if=pflash,format=raw,file=' ~ playbook_dir ~ '/OVMF_VARS-' ~ item.name ~ '.fd') if uefi is defined else '' }}
     -display none -vnc :{{ item.vnc_display }}
     -netdev user,id=net0 -device virtio-net,netdev=net0
     -drive file={{ item.disk }},format=raw,if=virtio
@@ -61,7 +92,8 @@
   shell: >
     nohup qemu-system-x86_64
     -m {{ qemu_mem }} -smp {{ qemu_smp }}
-    -machine accel=kvm,type=pc -cpu host
+    -machine accel=kvm,type={{ 'q35' if uefi is defined else 'pc' }} -cpu host
+    {{ ('-drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd -drive if=pflash,format=raw,file=' ~ playbook_dir ~ '/OVMF_VARS-' ~ item.item.name ~ '.fd') if uefi is defined else '' }}
     -display none -vnc :{{ item.item.vnc_display }}
     -netdev user,id=net0,hostfwd=tcp::{{ item.item.winrm_port }}-:5985,hostfwd=tcp::{{ item.item.ssh_port }}-:22
     -device virtio-net,netdev=net0

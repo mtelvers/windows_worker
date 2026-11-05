@@ -4,8 +4,20 @@ winver: "2025"
 qemu_mem: "96G"
 qemu_smp: 16
 
+# Name of the worker VM to build. Override without editing this file:
+#   make provision VMNAME=ltsc2025-3
+#
+# This is not cosmetic. It becomes the Windows hostname, the ocluster
+# worker --name, the Windows service name, and (via "'2025' in
+# inventory_hostname" in roles/worker) selects the builder pool. It must
+# therefore contain the Windows version and match winver above.
+#
+# disk / ports / vnc_display stay host-specific: this checkout drives the
+# VMs on one machine, so edit those here if the layout changes.
+vm_name: "ltsc2025-3"
+
 vms:
-  - name: ltsc2025-1
+  - name: "{{ vm_name }}"
     disk: /dev/sdc
     winrm_port: 5985
     ssh_port: 60022

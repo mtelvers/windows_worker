@@ -24,17 +24,89 @@
         <component language="neutral" name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
             <DiskConfiguration>
                 <Disk wcm:action="add">
+{% if uefi is defined %}
+                    <!-- UEFI/GPT. GPT lifts the MBR 2 TiB addressing limit, so a
+                         disk larger than 2 TiB is fully usable and C:/D: can both
+                         live on it. Requires the VM to boot via OVMF (see the
+                         qemu role) - an MBR image will not boot under UEFI. -->
+                    <CreatePartitions>
+                        <CreatePartition wcm:action="add">
+                            <Order>1</Order>
+                            <Type>EFI</Type>
+                            <Size>260</Size>
+                        </CreatePartition>
+                        <CreatePartition wcm:action="add">
+                            <Order>2</Order>
+                            <Type>MSR</Type>
+                            <Size>128</Size>
+                        </CreatePartition>
+                        <CreatePartition wcm:action="add">
+                            <Order>3</Order>
+                            <Type>Primary</Type>
+                            <Size>{{ c_partition_mb }}</Size>
+                        </CreatePartition>
+                        <CreatePartition wcm:action="add">
+                            <Order>4</Order>
+                            <Type>Primary</Type>
+                            <Extend>true</Extend>
+                        </CreatePartition>
+                    </CreatePartitions>
+                    <ModifyPartitions>
+                        <ModifyPartition wcm:action="add">
+                            <Order>1</Order>
+                            <PartitionID>1</PartitionID>
+                            <Label>System</Label>
+                            <Format>FAT32</Format>
+                        </ModifyPartition>
+                        <ModifyPartition wcm:action="add">
+                            <Order>2</Order>
+                            <PartitionID>2</PartitionID>
+                        </ModifyPartition>
+                        <ModifyPartition wcm:action="add">
+                            <Order>3</Order>
+                            <PartitionID>3</PartitionID>
+                            <Letter>C</Letter>
+                            <Format>NTFS</Format>
+                        </ModifyPartition>
+                        <ModifyPartition wcm:action="add">
+                            <Order>4</Order>
+                            <PartitionID>4</PartitionID>
+                            <Letter>D</Letter>
+                            <Label>docker</Label>
+                            <Format>NTFS</Format>
+                        </ModifyPartition>
+                    </ModifyPartitions>
+{% else %}
                     <CreatePartitions>
                         <CreatePartition wcm:action="add">
                             <Type>Primary</Type>
                             <Order>1</Order>
                             <Size>350</Size>
                         </CreatePartition>
+{% if c_partition_mb is defined %}
+                        <!-- C: fixed size so Docker can have its own volume.
+                             Docker and OBuilder each prune on free space; on a
+                             shared volume the higher threshold starves the other
+                             (obuilder 30 vs docker 10), which livelocked
+                             ltsc2025-1/-2 on 2026-09-11. Separate volumes make
+                             the two thresholds independent. -->
+                        <CreatePartition wcm:action="add">
+                            <Order>2</Order>
+                            <Type>Primary</Type>
+                            <Size>{{ c_partition_mb }}</Size>
+                        </CreatePartition>
+                        <CreatePartition wcm:action="add">
+                            <Order>3</Order>
+                            <Type>Primary</Type>
+                            <Extend>true</Extend>
+                        </CreatePartition>
+{% else %}
                         <CreatePartition wcm:action="add">
                             <Order>2</Order>
                             <Type>Primary</Type>
                             <Extend>true</Extend>
                         </CreatePartition>
+{% endif %}
                     </CreatePartitions>
                     <ModifyPartitions>
                         <ModifyPartition wcm:action="add">
@@ -49,7 +121,17 @@
                             <Order>2</Order>
                             <PartitionID>2</PartitionID>
                         </ModifyPartition>
+{% if c_partition_mb is defined %}
+                        <ModifyPartition wcm:action="add">
+                            <Format>NTFS</Format>
+                            <Label>docker</Label>
+                            <Letter>D</Letter>
+                            <Order>3</Order>
+                            <PartitionID>3</PartitionID>
+                        </ModifyPartition>
+{% endif %}
                     </ModifyPartitions>
+{% endif %}
                     <DiskID>0</DiskID>
                     <WillWipeDisk>true</WillWipeDisk>
                 </Disk>
@@ -64,7 +146,7 @@
                     </InstallFrom>
                     <InstallTo>
                         <DiskID>0</DiskID>
-                        <PartitionID>2</PartitionID>
+                        <PartitionID>{% if uefi is defined %}3{% else %}2{% endif %}</PartitionID>
                     </InstallTo>
                     <WillShowUI>OnError</WillShowUI>
                 </OSImage>
