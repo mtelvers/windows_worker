@@ -29,6 +29,10 @@ Docker; `C:\day10` (tool, installed as `C:\windows\system32\day10.exe`);
 `C:\ocluster` is the `day10` branch of mtelvers/ocluster; state in
 `D:\ocluster-state` (worker logs, opam-repository mirror under `git\`); the
 layer cache in `D:\cache`; capability `C:\windows\pool-day10-windows-x86_64.cap`.
+The service runs as `.\Administrator`, not LocalSystem, and the roles
+apply three patches on top of the pinned day10/ocluster sources (see
+`roles/day10/files` and `roles/day10-worker/files`); without them day10 does
+not work under a service at all. day10's stderr is in the worker log.
 Inspect with `ocluster-admin -c ~/admin.cap show day10-windows-x86_64` and
 test with `ocluster-client submit-day10 -c ~/mtelvers.cap --pool day10-windows-x86_64 ...`.
 
