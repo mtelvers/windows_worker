@@ -2,11 +2,11 @@
 # navajo: one day10 worker on the whole 1.6T NVMe, UEFI/GPT with C: 256 GiB
 # for Windows and containerd and D: (~1.2 TiB) for the day10 cache and the
 # worker state. The host is 2x EPYC 7551 (64 threads a socket) with 512G;
-# the guest takes half a socket and sits on node 0.
+# the guest takes half a socket and 200G of node 0's ~256G.
 cd ~/windows_worker || exit 1
 export PYTHONUNBUFFERED=1
 exec stdbuf -oL -eL ansible-playbook playbook.yml \
-  -e winver=2025 -e qemu_mem=128G -e qemu_smp=32 \
+  -e winver=2025 -e qemu_mem=200G -e qemu_smp=32 \
   -e uefi=true \
   -e worker_kind=day10 \
   -e day10_src_tgz=day10-c680957.tgz \

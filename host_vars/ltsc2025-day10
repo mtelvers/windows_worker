@@ -1,0 +1,7 @@
+---
+# day10 worker on navajo. 16 jobs at once: the guest has 32 vCPUs and 200G,
+# and a day10 job is one process container at a time, so this is a bet on
+# builds being I/O-bound more often than CPU-bound. Watch D: - every job
+# adds layers to the cache, and the prune threshold is what keeps it in
+# check.
+day10_capacity: 16
