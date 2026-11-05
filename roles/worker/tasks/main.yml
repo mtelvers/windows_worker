@@ -8,17 +8,19 @@
   set_fact: builder_pool="windows-1809-x86_64"
   when: "'2019' in inventory_hostname"
 
+# The HCS backend now lives upstream: obuilder #204 (hcs2) and #209
+# (hcs-container-cleanup), and ocluster #258. The old mtelvers/*/hcs2
+# branches were deleted once those merged, so clone upstream master and
+# take the obuilder submodule at the commit ocluster pins.
 - name: Clone ocluster repo
-  win_command: git clone --recursive -b hcs2 https://github.com/mtelvers/ocluster c:\ocluster
+  win_command: git clone --recursive https://github.com/ocurrent/ocluster c:\ocluster
   args:
     creates: c:\ocluster
 
-- name: Update obuilder submodule to hcs2 branch
+- name: Ensure obuilder submodule is at the pinned commit
   win_shell: |
-    cd c:\ocluster\obuilder
-    git remote add mtelvers https://github.com/mtelvers/obuilder.git 2>$null
-    git fetch mtelvers hcs2
-    git checkout -f mtelvers/hcs2
+    cd c:\ocluster
+    git submodule update --init --recursive
 
 - name: Create opam switch for ocluster
   win_command: opam switch create . 4.14.2 --no-install -y
@@ -27,7 +29,7 @@
     creates: c:\ocluster\_opam
 
 - name: Pin lwt to windows-fixes branch
-  win_command: opam exec -- opam pin add lwt git+https://github.com/mtelvers/lwt.git#windows-fixes-v2 --no-action -y
+  win_command: opam exec -- opam pin add lwt git+https://github.com/mtelvers/lwt.git#windows-fixes-v3 --no-action -y
   args:
     chdir: c:\ocluster
 
