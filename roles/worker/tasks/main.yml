@@ -22,6 +22,29 @@
     cd c:\ocluster
     git submodule update --init --recursive
 
+# ...but ocluster's pin is itself stale: the gitlink has been 0ad23d4 since
+# 11 Aug 2026, so the step above checks out a three-month-old obuilder with
+# no HCS ctr retry (obuilder #224). Without it, concurrent `ctr` calls hit
+# "All pipe instances are busy", the caller reads a recoverable blip as
+# success, and the active snapshot is orphaned.
+#
+# `branch = master` in ocluster's .gitmodules does not help - it is only
+# consulted by `git submodule update --remote`, which we do not want either,
+# since that would put every future obuilder commit on the farm untested.
+# So pin explicitly. Note this does not force a rebuild on a re-run: the
+# dune task below is guarded by `creates:`, so an existing worker needs its
+# service stopped and worker.exe removed to pick up a changed pin.
+- name: Pin obuilder to a commit with the HCS ctr retry
+  win_shell: |
+    cd c:\ocluster\obuilder
+    if ((git rev-parse HEAD | Out-String).Trim() -ne "{{ obuilder_commit }}") {
+      git fetch https://github.com/ocurrent/obuilder.git master
+      git checkout --force --detach {{ obuilder_commit }}
+      Write-Output "PINNED"
+    }
+  register: obuilder_pin_result
+  changed_when: "'PINNED' in obuilder_pin_result.stdout"
+
 - name: Create opam switch for ocluster
   win_command: opam switch create . 4.14.2 --no-install -y
   args:

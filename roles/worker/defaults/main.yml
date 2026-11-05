@@ -1,0 +1,10 @@
+---
+# obuilder commit the worker is built against.
+#
+# ocluster's submodule gitlink is 0ad23d4 (11 Aug 2026) and has not moved
+# since, so `git submodule update` alone lands a three-month-old obuilder.
+# fff7593 is ocurrent/obuilder master at the merge of #224, which makes the
+# HCS backend survive a busy containerd. Bump this to pick up later obuilder
+# work; drop it, and the task that uses it, once ocluster's own pin moves
+# past it.
+obuilder_commit: fff759302e125b3dbf2b4fdb82b051c27dc9f72e
