@@ -18,3 +18,8 @@
 - name: Configure git to accept long paths
   win_command: git config --system core.longpaths true
 
+- name: Configure git to create real symlinks on checkout
+  win_command: git config --system core.symlinks true
+
+- name: Configure git to leave line endings alone on checkout
+  win_command: git config --system core.autocrlf false
