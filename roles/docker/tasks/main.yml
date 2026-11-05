@@ -35,14 +35,48 @@
     url: https://github.com/docker/buildx/releases/download/v0.12.1/buildx-v0.12.1.windows-amd64.exe
     dest: c:\ProgramData\Docker\cli-plugins\buildx-v0.12.1.windows-amd64.exe
 
-- name: Copy daemon.json
-  win_copy:
-    src: daemon.json
+# daemon.json sets "exec-opts": ["isolation=hyperv"].
+#
+# Process isolation makes the container share the HOST kernel, which
+# Microsoft only supports when the container and host build numbers match.
+# These are Server 2025 hosts (build 26100) and we also build ltsc2022
+# images (build 20348). Mismatched process isolation does not fail cleanly:
+# Cygwin's setup-x86_64.exe hangs for ever part-way through the base image
+# build, with no error in any log. That silently broke the ltsc2022 image
+# from ~Feb 2026 until 2026-09-10. Hyper-V isolation gives each container
+# its own kernel in a utility VM, which fixes it.
+#
+# Cost: ocluster never passes --isolation, so this is the only lever and it
+# applies to matching (ltsc2025) builds too, each costing a utility VM.
+# data-root moves Docker onto its own volume where one exists (see
+# c_partition_mb in the qemu role). Docker and OBuilder each prune on free
+# space, so on a shared volume the higher threshold (obuilder 30) starves the
+# lower (docker 10) and the worker livelocks: obuilder prunes to 0 items and
+# still cannot reach its threshold because the space is Docker's. Separate
+# volumes make the two thresholds independent.
+- name: Create Docker data-root directory
+  win_file:
+    path: "{{ docker_data_root }}"
+    state: directory
+  when: docker_data_root is defined
+
+- name: Template daemon.json
+  win_template:
+    src: daemon.json.j2
     dest: C:\ProgramData\docker\config\daemon.json
+  register: docker_daemon_json
 
 - name: Set service startup mode to auto and ensure it is started
   win_service:
     name: docker
     start_mode: auto
     state: started
+
+# win_copy alone does not apply the config: on an already-provisioned worker
+# the file changes but dockerd keeps running with the old settings.
+- name: Restart Docker to apply daemon.json changes
+  win_service:
+    name: docker
+    state: restarted
+  when: docker_daemon_json is changed
 

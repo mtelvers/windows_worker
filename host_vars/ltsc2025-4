@@ -1,0 +1,7 @@
+---
+# ltsc2025-4 has a GPT disk with two volumes: C: 5 TiB (Windows +
+# containerd/obuilder) and D: 2.3 TiB (Docker). Keeping Docker on its own
+# volume makes the two prune thresholds independent - on a shared volume the
+# higher one (obuilder 30%) starves the lower (docker 10%), which livelocked
+# ltsc2025-1/-2 and ltsc2019-1.
+docker_data_root: 'D:\docker'

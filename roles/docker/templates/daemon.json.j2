@@ -1,0 +1,9 @@
+{
+    "experimental": true,
+{% if docker_data_root is defined %}
+    "exec-opts": ["isolation=hyperv"],
+    "data-root": "{{ docker_data_root | replace('\\', '\\\\') }}"
+{% else %}
+    "exec-opts": ["isolation=hyperv"]
+{% endif %}
+}
