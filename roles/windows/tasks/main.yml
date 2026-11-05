@@ -7,10 +7,26 @@
   win_reboot:
   when: hostname_result.reboot_required
 
+# Match ONLY a real Recovery partition. The old condition also matched
+# "no drive letter and under 1 GB", which on a GPT disk is the EFI System
+# partition (260 MB) and the MSR (128 MB) -- i.e. it aimed at the partitions
+# that make the machine bootable. It never did damage because Windows refuses
+# to remove them and ignore_errors swallowed the failure, but on MBR it was
+# equally pointed at the 350 MB system partition. Do not rely on Windows
+# saying no.
 - name: Remove recovery partition if present
   win_shell: |
-    $RecoveryPartition = Get-Partition -DiskNumber 0 | Where-Object { $_.Type -eq 'Recovery' -or ($_.DriveLetter -eq $null -and $_.Size -lt 1GB) }
-    if ($RecoveryPartition) { Remove-Partition -DiskNumber 0 -PartitionNumber $RecoveryPartition.PartitionNumber -Confirm:$false }
+    $recovery = Get-Partition -DiskNumber 0 | Where-Object { $_.Type -eq 'Recovery' }
+    if ($recovery) {
+      foreach ($p in $recovery) {
+        Remove-Partition -DiskNumber 0 -PartitionNumber $p.PartitionNumber -Confirm:$false
+      }
+      Write-Output "removed $($recovery.Count) recovery partition(s)"
+    } else {
+      Write-Output 'no recovery partition'
+    }
+  register: recovery_removed
+  changed_when: "'removed' in recovery_removed.stdout"
   ignore_errors: yes
 
 - name: Extend C partition to use all available space
