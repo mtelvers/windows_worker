@@ -26,7 +26,11 @@
     $sub = '4f971e89-eebd-4455-a8de-9e59040e7347'
     $set = '7648efa3-dd9c-4e3e-b566-50f929386280'
     $cur = powercfg /q SCHEME_CURRENT $sub $set | Select-String 'Current AC Power Setting Index'
-    if ($cur -notmatch '0x00000003') {
+    # On 26100.33650 (ltsc2025-day10) the query prints nothing at all while
+    # the setting is hidden, and an empty $cur fell through the -notmatch,
+    # leaving the button unbound: the guest sat through TimeoutStopSec on its
+    # first restart. Treat "no value" as "not 3".
+    if (-not $cur -or $cur -notmatch '0x00000003') {
       powercfg -attributes $sub $set -ATTRIB_HIDE
       powercfg /setacvalueindex SCHEME_CURRENT $sub $set 3
       powercfg /setdcvalueindex SCHEME_CURRENT $sub $set 3
