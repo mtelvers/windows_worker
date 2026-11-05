@@ -17,3 +17,6 @@ autounattend.xml
 
 # Per-VM UEFI firmware variables, created from the OVMF template on first boot
 OVMF_VARS-*.fd
+
+# Source snapshots handed to the day10 role (see day10_src_tgz)
+*.tgz

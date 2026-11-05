@@ -1,0 +1,93 @@
+---
+# ocluster-worker from the day10 branch, as a Windows service in the
+# day10-windows-x86_64 pool. The service runs as LocalSystem with no opam
+# environment, so everything it execs - day10, ctr, hcn-namespace, git and
+# their DLLs - has to be on the machine PATH.
+
+- name: Clone ocluster (day10 branch)
+  win_command: git clone --recursive --branch day10 https://github.com/mtelvers/ocluster c:\ocluster
+  args:
+    creates: c:\ocluster
+
+- name: Check out the pinned ocluster commit
+  win_shell: |
+    cd c:\ocluster
+    if ((git rev-parse HEAD | Out-String).Trim() -ne "{{ ocluster_day10_commit }}") {
+      git fetch origin day10
+      git checkout --force --detach {{ ocluster_day10_commit }}
+      git submodule update --init --recursive
+      Write-Output "PINNED"
+    }
+  register: ocluster_pin_result
+  changed_when: "'PINNED' in ocluster_pin_result.stdout"
+
+- name: Create opam switch for ocluster
+  win_command: opam switch create . {{ day10_ocaml }} --no-install -y
+  args:
+    chdir: c:\ocluster
+    creates: c:\ocluster\_opam
+
+# The three packages, not ".": the directory also holds current_ocluster,
+# whose ocurrent dependency tree is not needed for the worker. winsvc, which
+# makes `worker.exe install` a real service, is a win32 dependency of
+# ocluster.opam.
+- name: Install ocluster dependencies
+  win_command: opam exec -- opam install ./ocluster-api.opam ./ocluster-worker.opam ./ocluster.opam --deps-only -y
+  args:
+    chdir: c:\ocluster
+
+- name: Build ocluster-worker with dune
+  win_command: opam exec -- dune build bin/worker.exe
+  args:
+    chdir: c:\ocluster
+    creates: c:\ocluster\_build\default\bin\worker.exe
+
+- name: Add mingw bin to system PATH for service runtime
+  win_path:
+    elements:
+      - c:\users\administrator\appdata\local\opam\.cygwin\root\usr\x86_64-w64-mingw32\sys-root\mingw\bin
+    scope: machine
+
+- name: Create day10 cache and state directories
+  win_file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - "{{ day10_cache_dir }}"
+    - "{{ day10_state_dir }}"
+
+- name: Copy capability file
+  win_copy:
+    src: secrets/pool-day10-windows-x86_64.cap
+    dest: c:\windows\pool-day10-windows-x86_64.cap
+
+- name: Remove old ocluster-worker service if present
+  win_command: opam exec -- _build\default\bin\worker.exe remove {{ inventory_hostname_short | lower }}
+  args:
+    chdir: c:\ocluster
+  failed_when: false
+
+- name: Install ocluster-worker as a Windows service
+  win_command: >
+    opam exec -- _build\default\bin\worker.exe install
+    --state-dir={{ day10_state_dir }}
+    --name={{ inventory_hostname_short | lower }}
+    --capacity={{ day10_capacity }}
+    --day10-cache={{ day10_cache_dir }}
+    --day10-prune-threshold={{ day10_prune_threshold }}
+    --connect=c:\windows\pool-day10-windows-x86_64.cap
+    --verbosity=info
+  args:
+    chdir: c:\ocluster
+
+- name: Write go.bat for manual worker startup
+  win_copy:
+    content: |
+      cd /d c:\ocluster
+      opam exec -- _build\default\bin\worker.exe --verbosity=info --name={{ inventory_hostname_short | lower }} --connect=c:\windows\pool-day10-windows-x86_64.cap --capacity={{ day10_capacity }} --state-dir={{ day10_state_dir }} --day10-cache={{ day10_cache_dir }} --day10-prune-threshold={{ day10_prune_threshold }}
+    dest: c:\windows\go.bat
+
+- name: Start ocluster-worker service
+  win_service:
+    name: "{{ inventory_hostname_short | lower }}"
+    state: started

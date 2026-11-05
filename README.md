@@ -8,6 +8,17 @@ OBuilder HCS store.
 There is no Vagrant any more — the `qemu` role creates, installs and boots the
 VMs directly, then registers them with Ansible in-memory.
 
+There are two kinds of worker, chosen with `worker_kind`:
+
+- `obuilder` (default): the `windows-x86_64` pool. Docker plus containerd,
+  `ocluster-worker` from upstream with an HCS OBuilder store.
+- `day10`: the `day10-windows-x86_64` pool. containerd only (no Docker), the
+  [day10](https://github.com/mtelvers/day10) tool and `ocluster-worker` from
+  the `day10` branch of mtelvers/ocluster, which runs day10 health-checks as
+  `day10` custom jobs against a cache on `D:`. `provision-navajo.sh` is the
+  worked example; the pool capability is
+  `secrets/pool-day10-windows-x86_64.cap`.
+
 ## Prerequisites
 
 On the KVM host:
@@ -59,7 +70,10 @@ make provision WINVER=2019  # or 2022 / 2025
 2. **worker roles (`workers`):** `windows`, `docker`, `containerd`, `git`,
    `opam`, `capnproto`, `hcn-namespace`, `worker` — these build
    `ocluster-worker` at `C:\ocluster` and install it as a Windows service named
-   after the host.
+   after the host. With `worker_kind=day10` the `docker` and `worker` roles
+   are replaced by `day10` (builds the tool at `C:\day10`, installs it to
+   `system32`) and `day10-worker` (the day10 branch of ocluster at
+   `C:\ocluster`, service with `--day10-cache D:\cache`).
 
 Because the inventory is built in-memory, the static `hosts` file only contains
 the `[workers]` group header — there is nothing to edit per run.

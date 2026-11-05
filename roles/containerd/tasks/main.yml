@@ -10,6 +10,22 @@
     container_base_image: "mcr.microsoft.com/windows/servercore:ltsc2019"
   when: "'2019' in inventory_hostname"
 
+# The obuilder worker gets this from the docker role, with a reboot. On a
+# day10 worker nothing else installs it, and install-containerd-runtime.ps1
+# stops ("A reboot is required; stopping script execution") rather than
+# finishing when it has to add the feature itself.
+- name: Install the Containers feature
+  win_feature:
+    name: Containers
+    state: present
+    include_sub_features: no
+    include_management_tools: no
+  register: containers_feature
+
+- name: Reboot after installing the Containers feature
+  win_reboot:
+  when: containers_feature.reboot_required
+
 - name: Download containerd runtime installer
   win_get_url:
     url: https://raw.githubusercontent.com/microsoft/Windows-Containers/refs/heads/Main/helpful_tools/Install-ContainerdRuntime/install-containerd-runtime.ps1
@@ -30,18 +46,31 @@
     path: C:\Program Files\containerd\cni\conf
     state: directory
 
+# Without Docker there is no HNS "nat" network to copy the subnet from, so
+# the day10 worker takes the static config; the nat CNI plugin creates the
+# HNS network from it on the first `ctr run --cni`. The obuilder worker
+# syncs the config to Docker's network instead, below.
+- name: Install static NAT CNI config
+  win_copy:
+    src: 0-containerd-nat.conf
+    dest: C:\Program Files\containerd\cni\conf\0-containerd-nat.conf
+  when: worker_kind == 'day10'
+
 - name: Download HNS PowerShell module
   win_get_url:
     url: https://raw.githubusercontent.com/microsoft/SDN/master/Kubernetes/windows/hns.psm1
     dest: c:\windows\hns.psm1
+  when: worker_kind == 'obuilder'
 
 - name: Copy fix-nat.ps1 script
   win_copy:
     src: fix-nat.ps1
     dest: c:\windows\fix-nat.ps1
+  when: worker_kind == 'obuilder'
 
 - name: Sync CNI config to Docker's NAT network subnet
   win_shell: powershell.exe -ExecutionPolicy Bypass -File c:\windows\fix-nat.ps1
+  when: worker_kind == 'obuilder'
 
 - name: Create scheduled task to sync CNI config on boot
   win_shell: |
@@ -49,6 +78,7 @@
     $trigger = New-ScheduledTaskTrigger -AtStartup
     $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
     Register-ScheduledTask -TaskName 'SyncCniNatConfig' -Action $action -Trigger $trigger -Principal $principal -Force
+  when: worker_kind == 'obuilder'
 
 - name: Ensure containerd service is running
   win_service:

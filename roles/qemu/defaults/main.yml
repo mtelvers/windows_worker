@@ -4,6 +4,11 @@ winver: "2025"
 qemu_mem: "96G"
 qemu_smp: 16
 
+# What the guest serves: obuilder (windows-x86_64 pool, Docker + HCS
+# obuilder store) or day10 (day10-windows-x86_64 pool, containerd and the
+# day10 tool, no Docker). Passed through to the worker plays by add_host.
+worker_kind: obuilder
+
 # Name of the worker VM to build. Override without editing this file:
 #   make provision VMNAME=ltsc2025-3
 #

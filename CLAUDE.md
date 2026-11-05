@@ -9,6 +9,9 @@ Ansible playbooks and configs for the OCluster Windows worker pool (`windows-x86
 | `ltsc2025-1` | `ssh ltsc2025-1` | `thyme.caelum.ci.dev:60022` | QEMU VM on thyme |
 | `ltsc2025-2` | `ssh ltsc2025-2` | `thyme.caelum.ci.dev:60023` | QEMU VM on thyme |
 | `ltsc2025-3` | `ssh ltsc2025-3` | `127.0.0.1:60022` | QEMU VM on this machine |
+| `ltsc2025-4` | | `mint.caelum.ci.dev:60023` | QEMU VM on mint |
+| `ltsc2025-5`, `ltsc2025-6` | | `basil.caelum.ci.dev:60022/60023` | QEMU VMs on basil |
+| `ltsc2025-day10` | | `navajo.caelum.ci.dev:60022` | QEMU VM on navajo; pool `day10-windows-x86_64`, not `windows-x86_64` |
 
 SSH aliases live in `~/.ssh/config`. All workers run Windows Server 2025.
 
@@ -20,6 +23,14 @@ SSH aliases live in `~/.ssh/config`. All workers run Windows Server 2025.
 - Service name: lowercase `inventory_hostname_short` (e.g. `ltsc2025-3`)
 - Capability file: `C:\windows\pool-windows-x86_64.cap`
 - Manual start script: `C:\windows\go.bat`
+
+day10 workers (`worker_kind=day10`, see `provision-navajo.sh`) differ: no
+Docker; `C:\day10` (tool, installed as `C:\windows\system32\day10.exe`);
+`C:\ocluster` is the `day10` branch of mtelvers/ocluster; state in
+`D:\ocluster-state` (worker logs, opam-repository mirror under `git\`); the
+layer cache in `D:\cache`; capability `C:\windows\pool-day10-windows-x86_64.cap`.
+Inspect with `ocluster-admin -c ~/admin.cap show day10-windows-x86_64` and
+test with `ocluster-client submit-day10 -c ~/mtelvers.cap --pool day10-windows-x86_64 ...`.
 
 ## Common operations
 

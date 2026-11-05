@@ -1,0 +1,66 @@
+---
+# The day10 tool itself, built natively and put on the machine PATH, where
+# the worker service (LocalSystem, no opam environment) finds it as "day10".
+# It needs ctr, hcn-namespace and git on that PATH too: the containerd
+# installer, the hcn-namespace role and the git role put them there. Its
+# mingw runtime DLLs (libstdc++ for mccs) come from the mingw bin dir the
+# day10-worker role adds.
+
+# Two sources. With day10_src_tgz set, a `git archive --prefix=day10/`
+# snapshot from the playbook dir is unpacked as C:\day10: the Windows
+# backend (c46bd94 and after) was on a main that had not been pushed when
+# navajo was built, and optiplex was built from the same kind of snapshot.
+# Otherwise clone GitHub and pin day10_commit.
+- name: Upload day10 source snapshot
+  win_copy:
+    src: "{{ day10_src_tgz }}"
+    dest: c:\windows\temp\day10-src.tgz
+  when: day10_src_tgz is defined
+
+- name: Unpack day10 source snapshot
+  win_shell: |
+    tar xzf c:\windows\temp\day10-src.tgz -C c:\
+  args:
+    creates: c:\day10
+  when: day10_src_tgz is defined
+
+- name: Clone day10
+  win_command: git clone https://github.com/mtelvers/day10 c:\day10
+  args:
+    creates: c:\day10
+  when: day10_src_tgz is not defined
+
+- name: Check out the pinned day10 commit
+  win_shell: |
+    cd c:\day10
+    if ((git rev-parse HEAD | Out-String).Trim() -ne "{{ day10_commit }}") {
+      git fetch origin
+      git checkout --force --detach {{ day10_commit }}
+      Write-Output "PINNED"
+    }
+  register: day10_pin_result
+  changed_when: "'PINNED' in day10_pin_result.stdout"
+  when: day10_src_tgz is not defined
+
+- name: Create opam switch for day10
+  win_command: opam switch create . {{ day10_ocaml }} --no-install -y
+  args:
+    chdir: c:\day10
+    creates: c:\day10\_opam
+
+- name: Install day10 dependencies
+  win_command: opam exec -- opam install . --deps-only -y
+  args:
+    chdir: c:\day10
+
+- name: Build day10
+  win_command: opam exec -- dune build @install
+  args:
+    chdir: c:\day10
+    creates: c:\day10\_build\install\default\bin\day10.exe
+
+- name: Copy day10 to system32
+  win_copy:
+    src: c:\day10\_build\install\default\bin\day10.exe
+    dest: c:\windows\system32\day10.exe
+    remote_src: true

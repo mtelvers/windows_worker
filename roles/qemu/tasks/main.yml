@@ -6,6 +6,7 @@
 - name: Validate vm_name
   assert:
     that:
+      - worker_kind in ['obuilder', 'day10']
       - vms | length > 0
       - vms | map(attribute='name') | select('match', '^\s*$') | list | length == 0
       - vms | map(attribute='name') | reject('search', winver) | list | length == 0
@@ -155,6 +156,7 @@
     ansible_winrm_connection_timeout: 120
     ansible_winrm_operation_timeout_sec: 120
     ansible_winrm_read_timeout_sec: 120
+    worker_kind: "{{ worker_kind }}"
   loop: "{{ vms }}"
   loop_control:
     label: "{{ item.name }}"

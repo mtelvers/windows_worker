@@ -5,13 +5,19 @@
   roles:
     - qemu
 
+# worker_kind selects what the guest serves. obuilder (the default) is the
+# windows-x86_64 pool: Docker plus containerd with an HCS obuilder store.
+# day10 is the day10-windows-x86_64 pool: containerd only, the day10 tool and
+# the ocluster day10 branch, no Docker. See roles/qemu/defaults/main.yml.
 - hosts: workers
   roles:
     - windows
-    - docker
+    - { role: docker, when: worker_kind == 'obuilder' }
     - containerd
     - git
     - opam
     - capnproto
     - hcn-namespace
-    - worker
+    - { role: worker, when: worker_kind == 'obuilder' }
+    - { role: day10, when: worker_kind == 'day10' }
+    - { role: day10-worker, when: worker_kind == 'day10' }

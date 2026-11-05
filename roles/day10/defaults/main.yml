@@ -1,0 +1,10 @@
+---
+# Both ocluster and day10 build on 5.3.0 like optiplex. day10 itself needs
+# >= 5.3.0, which rules out the 4.14.2 the obuilder worker uses.
+day10_ocaml: ocaml-base-compiler.5.3.0
+
+# mtelvers/day10 main as of 2026-11-05, the commit optiplex was rebuilt from.
+# Not on GitHub yet (origin/main is 2fe29df, before the Windows backend), so
+# navajo takes a snapshot instead: see day10_src_tgz in provision-navajo.sh.
+day10_commit: c680957e2080035dab753c7ee603c826873dc3b7
+
