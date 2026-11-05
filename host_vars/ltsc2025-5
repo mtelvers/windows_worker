@@ -1,0 +1,11 @@
+---
+# The disk is GPT with C: 6.25 TiB (Windows plus containerd/obuilder) and
+# D: ~1 TiB (Docker). Keeping Docker on its own volume makes the two prune
+# thresholds independent - on a shared volume the higher one starves the
+# lower, which livelocked ltsc2025-1/-2 and ltsc2019-1.
+#
+# D: is sized against measurement, not ltsc2025-4's 2.3 TiB: the image set is
+# the {mingw,msvc} x {ltsc2022,ltsc2025} x {4.14,5.2,5.4,5.5} matrix, 13 tags
+# and 165 GB on disk after a month, and it is bounded by that matrix rather
+# than growing. 1 TiB is about 4x the measured footprint.
+docker_data_root: 'D:\docker'
