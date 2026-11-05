@@ -1,0 +1,60 @@
+#!/usr/bin/python3
+"""Ask a running qemu to press the guest's virtual power button.
+
+qemu ignores SIGTERM as far as the guest is concerned: systemd's default
+stop would kill the process and leave Windows as though the power had been
+pulled. On these workers that means HCS and containerd state torn down
+mid-write, which is a slow and confusing class of failure to debug later.
+
+Sending system_powerdown over QMP gives Windows an ACPI power button press,
+so it shuts down its services in order and qemu exits on its own.
+
+This then BLOCKS until qemu goes away, and that is the whole point. systemd
+sends KillSignal to anything still in the cgroup the moment ExecStop returns,
+so a helper that asks politely and exits just means the guest gets SIGTERMed
+half a second later - measured, with "qemu-system-x86_64: terminating on
+signal 15" in the journal to prove it. Blocking here makes systemd wait, and
+the unit's TimeoutStopSec is the backstop if the guest ignores the button.
+
+qemu closes the QMP socket when it exits, so EOF is the signal to return.
+"""
+import json
+import socket
+import sys
+
+
+def command(f, name):
+    """Run one QMP command, skipping the asynchronous events in between."""
+    f.write(json.dumps({"execute": name}) + "\n")
+    f.flush()
+    while True:
+        line = f.readline()
+        if not line:
+            return None
+        msg = json.loads(line)
+        if "return" in msg or "error" in msg:
+            return msg
+
+
+def main():
+    if len(sys.argv) != 2:
+        sys.exit("usage: windows-vm-powerdown /run/windows-vm-NAME.qmp")
+    s = socket.socket(socket.AF_UNIX)
+    try:
+        s.connect(sys.argv[1])
+    except OSError as e:
+        # Already gone: nothing to power down, and failing here would only
+        # turn a completed stop into a unit failure.
+        sys.exit(0 if e.errno in (2, 111) else f"{sys.argv[1]}: {e}")
+    f = s.makefile("rw")
+    f.readline()                      # QMP greeting
+    command(f, "qmp_capabilities")
+    reply = command(f, "system_powerdown")
+    if reply and "error" in reply:
+        sys.exit(reply["error"].get("desc", "system_powerdown failed"))
+    while f.readline():
+        pass
+
+
+if __name__ == "__main__":
+    main()

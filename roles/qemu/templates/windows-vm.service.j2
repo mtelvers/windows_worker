@@ -1,0 +1,58 @@
+# {{ ansible_managed }}
+#
+# One unit per VM, fully rendered - not a windows-vm@.service template. The
+# pflash and numactl parts are conditional and systemd has no conditionals,
+# so the choice would be EnvironmentFile indirection that hides the command
+# line from anyone reading the unit.
+#
+# This replaces run.sh. Having both a script and the ansible role able to
+# start a VM is what let basil run for a day with no NUMA binding and no
+# cache=none: run.sh had them, but provisioning starts the VM, so run.sh was
+# never the thing that ran.
+
+{# uefi is per-VM with the play-level flag as the default: mint runs
+   ltsc2025-3 on MBR/BIOS and ltsc2025-4 on GPT/UEFI off one inventory, and
+   an MBR image does not boot under OVMF. #}
+{% set vm_uefi = vm.uefi if vm.uefi is defined else (uefi is defined) %}
+[Unit]
+Description=Windows build worker VM {{ vm.name }}
+# The disk is an LVM volume over a dm-cache on basil and a bare disk on
+# mint. Either way qemu must not open it before udev has settled it, which
+# until now was luck.
+Requires={{ device_unit }}
+After={{ device_unit }} network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+{% if vm.numa_node is defined %}
+# --preferred, never --membind. membind is a hard wall: when the node fills
+# the kernel OOM-kills rather than spill, and it cannot migrate other
+# processes' anonymous pages off the node to make room. That killed a VM
+# three times on 2026-10-28, the last at 35G of its 40G.
+{% endif %}
+ExecStart={% if vm.numa_node is defined %}/usr/bin/numactl --cpunodebind={{ vm.numa_node }} --preferred={{ vm.numa_node }} {% endif %}/usr/bin/qemu-system-x86_64 \
+    -m {{ qemu_mem }} -smp {{ qemu_smp }} \
+    -machine accel=kvm,type={{ 'q35' if vm_uefi else 'pc' }} -cpu host \
+{% if vm_uefi %}
+    -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
+    -drive if=pflash,format=raw,file={{ playbook_dir }}/OVMF_VARS-{{ vm.name }}.fd \
+{% endif %}
+    -display none -vnc :{{ vm.vnc_display }} \
+    -qmp unix:/run/windows-vm-{{ vm.name }}.qmp,server=on,wait=off \
+    -netdev user,id=net0,hostfwd=tcp::{{ vm.winrm_port }}-:5985,hostfwd=tcp::{{ vm.ssh_port }}-:22 \
+    -device virtio-net,netdev=net0 \
+    -drive file={{ vm.disk }},format=raw,if=virtio,cache=none
+
+# ACPI power button, then wait. Windows Update can make a shutdown take
+# minutes, and killing it part-way is worse than waiting.
+ExecStop=/usr/local/sbin/windows-vm-powerdown /run/windows-vm-{{ vm.name }}.qmp
+TimeoutStopSec=600
+
+# on-failure, not always: a deliberate guest shutdown exits qemu 0 and must
+# stay down.
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
