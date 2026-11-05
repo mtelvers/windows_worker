@@ -14,3 +14,6 @@ autounattend.xml
 # Logs and captured session transcripts
 *.log
 *.jsonl
+
+# Per-VM UEFI firmware variables, created from the OVMF template on first boot
+OVMF_VARS-*.fd
