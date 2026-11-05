@@ -41,6 +41,10 @@
   args:
     creates: C:\Program Files\containerd\containerd.exe
 
+- name: Pull the servercore image day10 is pinned to
+  win_command: ctr image pull mcr.microsoft.com/windows/servercore@{{ day10_servercore_digest }}
+  when: worker_kind == 'day10'
+
 - name: Create CNI conf directory
   win_file:
     path: C:\Program Files\containerd\cni\conf

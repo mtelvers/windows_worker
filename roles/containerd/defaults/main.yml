@@ -1,0 +1,9 @@
+---
+# day10's Windows backend (bin/windows.ml) prepares every container on one
+# fixed containerd snapshot id, the top layer of the servercore:ltsc2025
+# image optiplex pulled in July 2025 (10.0.26100.4349). The tag has moved on
+# since and a fresh pull gives a different id, so a day10 worker also pulls
+# that exact image by digest to have the snapshot day10 asks for. Process
+# isolation on a Server 2025 host does not mind the older revision. Drop
+# this once day10 resolves the image's top snapshot at run time.
+day10_servercore_digest: sha256:4c8150b6fe78cac412f24690d250c97c29a8cf2b0f241be7e9330e7d93292305
