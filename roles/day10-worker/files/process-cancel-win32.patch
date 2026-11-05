@@ -1,0 +1,16 @@
+diff --git a/worker/process.ml b/worker/process.ml
+index 322f5f1..6f85061 100644
+--- a/worker/process.ml
++++ b/worker/process.ml
+@@ -31,6 +31,11 @@ let exec ~label ~log ~switch ?env ?(stdin="") ?(stderr=`FD_copy Unix.stdout) ?(i
+         Log.info (fun f -> f "Cancelling %s job…" label);
+         match on_cancel with
+         | `Kill -> proc#terminate
++        (* No SIGTERM on Windows: Unix.kill raises Invalid_argument there, and
++           uncaught in this hook it took the whole worker down with the first
++           cancelled job on ltsc2025-day10. day10's own teardown is lost, so
++           the container it was running is left to containerd. *)
++        | `Terminate_then_kill _ when Sys.win32 -> proc#terminate
+         | `Terminate_then_kill grace ->
+           proc#kill Sys.sigterm;
+           Lwt.async (fun () ->

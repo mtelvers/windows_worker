@@ -42,6 +42,27 @@
   changed_when: "'PINNED' in day10_pin_result.stdout"
   when: day10_src_tgz is not defined
 
+# day10 at c680957 can only remove what a container wrote when it runs from
+# an OpenSSH session: opam's Cygwin setup gives those files an explicit DACL
+# with no entry for the host account, and sshd happens to enable every
+# privilege, SeRestorePrivilege included, in its session token. Under a
+# service nothing does, and the base build dies at tidy with EACCES on
+# installed.db. The patch (files/day10-privileges.patch) has day10 enable
+# SeBackupPrivilege and SeRestorePrivilege itself. Drop it once main has the
+# change.
+- name: Upload the day10 privileges patch
+  win_copy:
+    src: day10-privileges.patch
+    dest: c:\day10\day10-privileges.patch
+
+- name: Let day10 enable the backup and restore privileges
+  win_shell: |
+    cd c:\day10
+    if (git apply --check --reverse day10-privileges.patch 2>$null) { Write-Output "ALREADY" } else { git apply day10-privileges.patch; Write-Output "APPLIED" }
+  register: day10_patch
+  changed_when: "'APPLIED' in day10_patch.stdout"
+  failed_when: day10_patch.rc != 0
+
 - name: Create opam switch for day10
   win_command: opam switch create . {{ day10_ocaml }} --no-install -y
   args:

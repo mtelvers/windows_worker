@@ -21,6 +21,42 @@
   register: ocluster_pin_result
   changed_when: "'PINNED' in ocluster_pin_result.stdout"
 
+# A Windows service has no console, so the worker's standard handles are not
+# valid, and Process.exec copies its stdout to each child as stderr. day10
+# then went away silently before its first container; the same binary with
+# stdio redirected to a file ran. The patch (files/winsvc-stdio.patch) points
+# the service's stdout and stderr at the worker log, which also keeps day10's
+# stderr - where its real errors go - next to the worker's own messages.
+# Drop this task once the day10 branch carries the change.
+- name: Upload the service stdio patch
+  win_copy:
+    src: winsvc-stdio.patch
+    dest: c:\ocluster\winsvc-stdio.patch
+
+- name: Redirect the service's stdio to the worker log
+  win_shell: |
+    cd c:\ocluster
+    if (git apply --check --reverse winsvc-stdio.patch 2>$null) { Write-Output "ALREADY" } else { git apply winsvc-stdio.patch; Write-Output "APPLIED" }
+  register: stdio_patch
+  changed_when: "'APPLIED' in stdio_patch.stdout"
+  failed_when: stdio_patch.rc != 0
+
+# Cancelling a job sends the child SIGTERM, which Unix.kill cannot do on
+# Windows: the Invalid_argument escaped the cancel hook and took the service
+# down with the first cancelled job. The patch terminates the child instead.
+- name: Upload the cancel patch
+  win_copy:
+    src: process-cancel-win32.patch
+    dest: c:\ocluster\process-cancel-win32.patch
+
+- name: Make job cancellation survive on Windows
+  win_shell: |
+    cd c:\ocluster
+    if (git apply --check --reverse process-cancel-win32.patch 2>$null) { Write-Output "ALREADY" } else { git apply process-cancel-win32.patch; Write-Output "APPLIED" }
+  register: cancel_patch
+  changed_when: "'APPLIED' in cancel_patch.stdout"
+  failed_when: cancel_patch.rc != 0
+
 - name: Create opam switch for ocluster
   win_command: opam switch create . {{ day10_ocaml }} --no-install -y
   args:
@@ -87,7 +123,17 @@
       opam exec -- _build\default\bin\worker.exe --verbosity=info --name={{ inventory_hostname_short | lower }} --connect=c:\windows\pool-day10-windows-x86_64.cap --capacity={{ day10_capacity }} --state-dir={{ day10_state_dir }} --day10-cache={{ day10_cache_dir }} --day10-prune-threshold={{ day10_prune_threshold }}
     dest: c:\windows\go.bat
 
-- name: Start ocluster-worker service
+# As Administrator, not LocalSystem as the obuilder worker runs. opam's
+# Cygwin setup inside the container writes files with an explicit DACL
+# (owner ContainerAdministrator, Administrators and Everyone read-only, no
+# SYSTEM entry), and day10 then cannot delete or chmod them from the host:
+# EACCES on installed.db at the end of the base build. Administrator can,
+# as on optiplex where the worker always ran as Administrator. win_service
+# grants the account the log-on-as-a-service right.
+- name: Run the worker service as Administrator and start it
   win_service:
     name: "{{ inventory_hostname_short | lower }}"
+    username: .\Administrator
+    password: "{{ ansible_password }}"
+    start_mode: auto
     state: started
