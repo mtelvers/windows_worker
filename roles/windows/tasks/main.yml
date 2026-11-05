@@ -14,6 +14,28 @@
 # to remove them and ignore_errors swallowed the failure, but on MBR it was
 # equally pointed at the 350 MB system partition. Do not rely on Windows
 # saying no.
+# systemd stops these VMs with qemu's ACPI power button (see
+# roles/qemu/templates/windows-vm.service.j2). Out of the box the buttons
+# subgroup is hidden from the power scheme and no action is bound, so Windows
+# silently ignores the press: ltsc2025-5 sat through the unit's full 600s
+# TimeoutStopSec and was SIGTERMed, answering ssh normally the whole time
+# because the shutdown had never started. Unhide the setting and bind it to
+# 3 (Shut down). Measured after: a 9s stop instead of a 600s timeout.
+- name: Make the ACPI power button shut Windows down
+  win_shell: |
+    $sub = '4f971e89-eebd-4455-a8de-9e59040e7347'
+    $set = '7648efa3-dd9c-4e3e-b566-50f929386280'
+    $cur = powercfg /q SCHEME_CURRENT $sub $set | Select-String 'Current AC Power Setting Index'
+    if ($cur -notmatch '0x00000003') {
+      powercfg -attributes $sub $set -ATTRIB_HIDE
+      powercfg /setacvalueindex SCHEME_CURRENT $sub $set 3
+      powercfg /setdcvalueindex SCHEME_CURRENT $sub $set 3
+      powercfg /setactive SCHEME_CURRENT
+      Write-Output 'CHANGED'
+    }
+  register: power_button
+  changed_when: "'CHANGED' in power_button.stdout"
+
 - name: Remove recovery partition if present
   win_shell: |
     $recovery = Get-Partition -DiskNumber 0 | Where-Object { $_.Type -eq 'Recovery' }
