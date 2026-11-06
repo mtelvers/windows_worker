@@ -36,7 +36,7 @@
 - name: Redirect the service's stdio to the worker log
   win_shell: |
     cd c:\ocluster
-    if (git apply --check --reverse winsvc-stdio.patch 2>$null) { Write-Output "ALREADY" } else { git apply winsvc-stdio.patch; Write-Output "APPLIED" }
+    if (git apply --ignore-whitespace --check --reverse winsvc-stdio.patch 2>$null) { Write-Output "ALREADY" } else { git apply --ignore-whitespace winsvc-stdio.patch; Write-Output "APPLIED" }
   register: stdio_patch
   changed_when: "'APPLIED' in stdio_patch.stdout"
   failed_when: stdio_patch.rc != 0
@@ -52,10 +52,30 @@
 - name: Make job cancellation survive on Windows
   win_shell: |
     cd c:\ocluster
-    if (git apply --check --reverse process-cancel-win32.patch 2>$null) { Write-Output "ALREADY" } else { git apply process-cancel-win32.patch; Write-Output "APPLIED" }
+    if (git apply --ignore-whitespace --check --reverse process-cancel-win32.patch 2>$null) { Write-Output "ALREADY" } else { git apply --ignore-whitespace process-cancel-win32.patch; Write-Output "APPLIED" }
   register: cancel_patch
   changed_when: "'APPLIED' in cancel_patch.stdout"
   failed_when: cancel_patch.rc != 0
+
+# Process.exec gave every child [`FD_copy Unix.stdout] as stderr. On Unix
+# that lands in the job log by accident: Lwt applies redirections in the
+# forked child in order, so fd 1 is already the log pipe when it is copied to
+# fd 2. On Windows the handles are resolved in the parent, so it was the
+# worker's own stdout, and day10's [NOTE] success / [ERROR] failure never
+# reached the job log. The patch makes stderr share the stdout pipe by
+# default on every platform. Applies on top of process-cancel-win32.patch.
+- name: Upload the stderr patch
+  win_copy:
+    src: process-stderr-stdout.patch
+    dest: c:\ocluster\process-stderr-stdout.patch
+
+- name: Send children's stderr to the job log
+  win_shell: |
+    cd c:\ocluster
+    if (git apply --ignore-whitespace --check --reverse process-stderr-stdout.patch 2>$null) { Write-Output "ALREADY" } else { git apply --ignore-whitespace process-stderr-stdout.patch; Write-Output "APPLIED" }
+  register: stderr_patch
+  changed_when: "'APPLIED' in stderr_patch.stdout"
+  failed_when: stderr_patch.rc != 0
 
 - name: Create opam switch for ocluster
   win_command: opam switch create . {{ day10_ocaml }} --no-install -y

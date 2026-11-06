@@ -60,7 +60,7 @@
 - name: Make day10 interruptible on Windows
   win_shell: |
     cd c:\day10
-    if (git apply --check --reverse day10-windows-interrupt.patch 2>$null) { Write-Output "ALREADY" } else { git apply day10-windows-interrupt.patch; Write-Output "APPLIED" }
+    if (git apply --ignore-whitespace --check --reverse day10-windows-interrupt.patch 2>$null) { Write-Output "ALREADY" } else { git apply --ignore-whitespace day10-windows-interrupt.patch; Write-Output "APPLIED" }
   register: day10_patch
   changed_when: "'APPLIED' in day10_patch.stdout"
   failed_when: day10_patch.rc != 0
