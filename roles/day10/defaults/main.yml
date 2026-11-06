@@ -3,8 +3,10 @@
 # >= 5.3.0, which rules out the 4.14.2 the obuilder worker uses.
 day10_ocaml: ocaml-base-compiler.5.3.0
 
-# mtelvers/day10 main as of 2026-11-05, the commit optiplex was rebuilt from.
-# Not on GitHub yet (origin/main is 2fe29df, before the Windows backend), so
-# navajo takes a snapshot instead: see day10_src_tgz in provision-navajo.sh.
-day10_commit: c680957e2080035dab753c7ee603c826873dc3b7
+# mtelvers/day10 main as of 2026-11-06: containers build on their own drive
+# and copy layers out with robocopy, so no host-side copies and no Cygwin
+# DACL trouble, and the base falls back to opam's archive cache. Not on
+# GitHub yet (origin/main is ad1a8f6), so navajo takes a snapshot: see
+# day10_src_tgz in provision-navajo.sh.
+day10_commit: 4b625e120dd9f910b78442024fe391e317d4c979
 

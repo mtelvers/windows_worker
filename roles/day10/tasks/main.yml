@@ -8,8 +8,7 @@
 
 # Two sources. With day10_src_tgz set, a `git archive --prefix=day10/`
 # snapshot from the playbook dir is unpacked as C:\day10: the Windows
-# backend (c46bd94 and after) was on a main that had not been pushed when
-# navajo was built, and optiplex was built from the same kind of snapshot.
+# backend navajo runs (4b625e1) is on a main that has not been pushed.
 # Otherwise clone GitHub and pin day10_commit.
 - name: Upload day10 source snapshot
   win_copy:
@@ -42,23 +41,26 @@
   changed_when: "'PINNED' in day10_pin_result.stdout"
   when: day10_src_tgz is not defined
 
-# day10 at c680957 can only remove what a container wrote when it runs from
-# an OpenSSH session: opam's Cygwin setup gives those files an explicit DACL
-# with no entry for the host account, and sshd happens to enable every
-# privilege, SeRestorePrivilege included, in its session token. Under a
-# service nothing does, and the base build dies at tidy with EACCES on
-# installed.db. The patch (files/day10-privileges.patch) has day10 enable
-# SeBackupPrivilege and SeRestorePrivilege itself. Drop it once main has the
-# change.
-- name: Upload the day10 privileges patch
+# Interrupting day10 on Windows (files/day10-windows-interrupt.patch, until
+# main has it):
+# - Ctrl-Break, the one console event that can be sent to a single process
+#   group, reaches day10's SIGINT handler. OCaml 4.14 mapped it in
+#   caml_win32_signal; OCaml 5 still defines that but no longer calls it, so
+#   Ctrl-Break killed day10 outright and skipped every finaliser.
+# - A blocking ReadFile is not interrupted, so a pending signal fires at the
+#   first safe point after it returns, often the top of a finaliser, before
+#   anything is released. Os.spawn and Cleanup.with_resource now release again
+#   when Fun.protect reports a finaliser cut short (Finally_raised); without it
+#   the build log stayed open and the temp directory could not be removed.
+- name: Upload the day10 interrupt patch
   win_copy:
-    src: day10-privileges.patch
-    dest: c:\day10\day10-privileges.patch
+    src: day10-windows-interrupt.patch
+    dest: c:\day10\day10-windows-interrupt.patch
 
-- name: Let day10 enable the backup and restore privileges
+- name: Make day10 interruptible on Windows
   win_shell: |
     cd c:\day10
-    if (git apply --check --reverse day10-privileges.patch 2>$null) { Write-Output "ALREADY" } else { git apply day10-privileges.patch; Write-Output "APPLIED" }
+    if (git apply --check --reverse day10-windows-interrupt.patch 2>$null) { Write-Output "ALREADY" } else { git apply day10-windows-interrupt.patch; Write-Output "APPLIED" }
   register: day10_patch
   changed_when: "'APPLIED' in day10_patch.stdout"
   failed_when: day10_patch.rc != 0
