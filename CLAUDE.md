@@ -11,7 +11,7 @@ Ansible playbooks and configs for the OCluster Windows worker pool (`windows-x86
 | `ltsc2025-3` | `ssh ltsc2025-3` | `127.0.0.1:60022` | QEMU VM on this machine |
 | `ltsc2025-4` | | `mint.caelum.ci.dev:60023` | QEMU VM on mint |
 | `ltsc2025-5`, `ltsc2025-6` | | `basil.caelum.ci.dev:60022/60023` | QEMU VMs on basil |
-| `ltsc2025-day10` | | `navajo.caelum.ci.dev:60022` | QEMU VM on navajo; pool `day10-windows-x86_64`, not `windows-x86_64` |
+| `ltsc2025-day10` | | `navajo.caelum.ci.dev:60022` | QEMU VM on navajo; pool `day10-windows-x86_64`, not `windows-x86_64`; registers and runs its service as `navajo` (`worker_name` in host_vars) |
 
 SSH aliases live in `~/.ssh/config`. All workers run Windows Server 2025.
 

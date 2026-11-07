@@ -118,7 +118,7 @@
     dest: c:\windows\pool-day10-windows-x86_64.cap
 
 - name: Remove old ocluster-worker service if present
-  win_command: opam exec -- _build\default\bin\worker.exe remove {{ inventory_hostname_short | lower }}
+  win_command: opam exec -- _build\default\bin\worker.exe remove {{ worker_name }}
   args:
     chdir: c:\ocluster
   failed_when: false
@@ -127,7 +127,7 @@
   win_command: >
     opam exec -- _build\default\bin\worker.exe install
     --state-dir={{ day10_state_dir }}
-    --name={{ inventory_hostname_short | lower }}
+    --name={{ worker_name }}
     --capacity={{ day10_capacity }}
     --day10-cache={{ day10_cache_dir }}
     --day10-prune-threshold={{ day10_prune_threshold }}
@@ -140,7 +140,7 @@
   win_copy:
     content: |
       cd /d c:\ocluster
-      opam exec -- _build\default\bin\worker.exe --verbosity=info --name={{ inventory_hostname_short | lower }} --connect=c:\windows\pool-day10-windows-x86_64.cap --capacity={{ day10_capacity }} --state-dir={{ day10_state_dir }} --day10-cache={{ day10_cache_dir }} --day10-prune-threshold={{ day10_prune_threshold }}
+      opam exec -- _build\default\bin\worker.exe --verbosity=info --name={{ worker_name }} --connect=c:\windows\pool-day10-windows-x86_64.cap --capacity={{ day10_capacity }} --state-dir={{ day10_state_dir }} --day10-cache={{ day10_cache_dir }} --day10-prune-threshold={{ day10_prune_threshold }}
     dest: c:\windows\go.bat
 
 # As Administrator, not LocalSystem as the obuilder worker runs. opam's
@@ -152,7 +152,7 @@
 # grants the account the log-on-as-a-service right.
 - name: Run the worker service as Administrator and start it
   win_service:
-    name: "{{ inventory_hostname_short | lower }}"
+    name: "{{ worker_name }}"
     username: .\Administrator
     password: "{{ ansible_password }}"
     start_mode: auto

@@ -8,6 +8,12 @@ ocluster_day10_commit: 5dc6523379bf7ef75d31c17665367bd7045f0dd2
 # here) so the two builds share opam's download cache.
 day10_ocaml: ocaml-base-compiler.5.3.0
 
+# The name the worker registers with the scheduler. `worker.exe install`
+# also names the Windows service after it. Defaults to the VM's name; set it
+# in host_vars when the pool should see something else (navajo's guest is
+# ltsc2025-day10 but registers as navajo).
+worker_name: "{{ inventory_hostname_short | lower }}"
+
 # Jobs run at once. Each is one process container at a time, with OPAMJOBS
 # at day10's default, so this scales with the guest's cores.
 day10_capacity: 4

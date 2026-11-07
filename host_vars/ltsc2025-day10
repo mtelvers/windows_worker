@@ -5,3 +5,7 @@
 # adds layers to the cache, and the prune threshold is what keeps it in
 # check.
 day10_capacity: 16
+
+# Registers with the scheduler, and names its Windows service, as navajo:
+# one day10 worker per host, so the host's name is the useful one.
+worker_name: navajo
