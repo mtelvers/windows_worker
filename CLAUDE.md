@@ -59,11 +59,15 @@ ssh ltsc2025-3 'sc start ltsc2025-3'
 
 See `~/.claude/projects/-home-mtelvers-windows-worker/memory/ocluster-worker-troubleshooting.md` for failure-mode patterns.
 
-### day10 workers: the opam-repository mirror's refs
+### day10 workers: why navajo's cached jobs are slower than optiplex's
 
-The worker's mirror (`D:\ocluster-state\git\opam-repository.git-*`) fetches
-`refs/pull/*`, about 31,600 refs. Git stores fetched refs as loose files and
-nothing here ever packs them, so every job's `git fetch` walked 31,600 files on
-NTFS: 13 s on navajo with nothing to fetch, 2.3 s after
-`git -C <mirror> pack-refs --all --prune` (2026-11-07). New PRs add loose refs
-again, so this degrades slowly until something packs them periodically.
+A cached job is mostly git on the opam-repository mirror, whose 31,600
+`refs/pull/*` refs are loose files (optiplex's too). File-metadata work in the
+navajo guest is about 2x optiplex with everything cached, and that is the
+EPYC 7551's memory latency (Zen 1, 2017: 107 ns vs 48 ns random access at
+16 MB, 175 vs 108 at 256 MB against an i5-10500T), not the VM: guest memory
+is on 2 MB host pages, and NUMA placement is all node 0. Not the filesystem
+either: ReFS in the same guest was no faster than NTFS. The Hyper-V
+enlightenments (`hyperv: true`) fixed a real 550x-slow timer but did not
+change this. `git -C <mirror> pack-refs --all --prune` does: fewer files to
+touch, fetch 13 s -> 2.3 s (2026-11-07); new PRs add loose refs again.
