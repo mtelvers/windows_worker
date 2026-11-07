@@ -58,3 +58,12 @@ ssh ltsc2025-3 'sc start ltsc2025-3'
 ```
 
 See `~/.claude/projects/-home-mtelvers-windows-worker/memory/ocluster-worker-troubleshooting.md` for failure-mode patterns.
+
+### day10 workers: the opam-repository mirror's refs
+
+The worker's mirror (`D:\ocluster-state\git\opam-repository.git-*`) fetches
+`refs/pull/*`, about 31,600 refs. Git stores fetched refs as loose files and
+nothing here ever packs them, so every job's `git fetch` walked 31,600 files on
+NTFS: 13 s on navajo with nothing to fetch, 2.3 s after
+`git -C <mirror> pack-refs --all --prune` (2026-11-07). New PRs add loose refs
+again, so this degrades slowly until something packs them periodically.
