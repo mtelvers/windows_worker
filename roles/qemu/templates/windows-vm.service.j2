@@ -40,9 +40,24 @@ Type=simple
 # by DHCP; the fixed MAC keeps that lease stable. qemu-bridge-helper needs
 # "allow {{ vm.bridge }}" in /etc/qemu/bridge.conf.
 {% endif %}
+{% if vm.hyperv | default(false) %}
+# Hyper-V enlightenments, and no HPET. With plain -cpu host Windows has no
+# clock it trusts and times itself with QEMU's emulated HPET (100 MHz): every
+# QueryPerformanceCounter is an exit to QEMU's user space, 13.7 us each on
+# navajo against 0.025 us on bare metal, and Windows reads it on every file
+# operation, which made git and day10 about twice as slow as a desktop.
+# hv-time gives it KVM's reference clock page instead. Per VM because the
+# obuilder VMs run Hyper-V isolated containers (nested), not yet tried with
+# these.
+{% endif %}
 ExecStart={% if vm.numa_node is defined %}/usr/bin/numactl --cpunodebind={{ vm.numa_node }} --preferred={{ vm.numa_node }} {% endif %}/usr/bin/qemu-system-x86_64 \
     -m {{ qemu_mem }} -smp {{ qemu_smp }} \
+{% if vm.hyperv | default(false) %}
+    -machine accel=kvm,type={{ 'q35' if vm_uefi else 'pc' }},hpet=off \
+    -cpu host,hv-relaxed,hv-vapic,hv-spinlocks=0x1fff,hv-vpindex,hv-runtime,hv-time,hv-synic,hv-stimer,hv-frequencies,hv-tlbflush,hv-ipi \
+{% else %}
     -machine accel=kvm,type={{ 'q35' if vm_uefi else 'pc' }} -cpu host \
+{% endif %}
 {% if vm_uefi %}
     -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
     -drive if=pflash,format=raw,file={{ playbook_dir }}/OVMF_VARS-{{ vm.name }}.fd \
