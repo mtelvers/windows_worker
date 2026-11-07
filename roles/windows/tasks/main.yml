@@ -40,6 +40,23 @@
   register: power_button
   changed_when: "'CHANGED' in power_button.stdout"
 
+# A bridged VM has two NICs: QEMU's user-mode network, kept only for the
+# WinRM and ssh port forwards, and its own NIC on a host bridge. Both offer a
+# default route, so make the user-mode one (the 10.0.2.x address QEMU hands
+# out) a last resort: through it downloads ran at about 120 KB/s.
+- name: Keep outbound traffic off the user-mode NIC
+  win_shell: |
+    $changed = $false
+    foreach ($a in (Get-NetIPAddress -AddressFamily IPv4 | Where-Object IPAddress -like '10.0.2.*')) {
+      foreach ($i in (Get-NetIPInterface -InterfaceIndex $a.InterfaceIndex)) {
+        if ($i.InterfaceMetric -ne 1000) { Set-NetIPInterface -InterfaceIndex $a.InterfaceIndex -AddressFamily $i.AddressFamily -InterfaceMetric 1000; $changed = $true }
+      }
+    }
+    if ($changed) { Write-Output 'CHANGED' }
+  register: slirp_metric
+  changed_when: "'CHANGED' in slirp_metric.stdout"
+  when: bridged | default(false) | bool
+
 - name: Remove recovery partition if present
   win_shell: |
     $recovery = Get-Partition -DiskNumber 0 | Where-Object { $_.Type -eq 'Recovery' }

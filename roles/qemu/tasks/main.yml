@@ -96,6 +96,15 @@
   loop_control:
     label: "{{ item.name }}"
 
+- name: Let qemu-bridge-helper attach VMs to their bridges
+  lineinfile:
+    path: /etc/qemu/bridge.conf
+    line: "allow {{ item }}"
+    create: yes
+    mode: "0644"
+  become: yes
+  loop: "{{ vms | selectattr('bridge', 'defined') | map(attribute='bridge') | unique | list }}"
+
 - name: Install the QMP powerdown helper
   copy:
     src: windows-vm-powerdown
@@ -157,6 +166,7 @@
     ansible_winrm_operation_timeout_sec: 120
     ansible_winrm_read_timeout_sec: 120
     worker_kind: "{{ worker_kind }}"
+    bridged: "{{ item.bridge is defined }}"
   loop: "{{ vms }}"
   loop_control:
     label: "{{ item.name }}"

@@ -31,6 +31,15 @@ Type=simple
 # processes' anonymous pages off the node to make room. That killed a VM
 # three times on 2026-10-28, the last at 35G of its 40G.
 {% endif %}
+{% if vm.bridge is defined %}
+# Two NICs. net0 is QEMU's user-mode network and only carries the WinRM and
+# ssh port forwards above; the windows role raises its route metric so
+# nothing outbound uses it. Through it the guest managed about 120 KB/s
+# from GitHub, which made every job's git fetch take 15-20s. net1 is on
+# {{ vm.bridge }}, a host bridge over a NIC of its own, and gets a lab address
+# by DHCP; the fixed MAC keeps that lease stable. qemu-bridge-helper needs
+# "allow {{ vm.bridge }}" in /etc/qemu/bridge.conf.
+{% endif %}
 ExecStart={% if vm.numa_node is defined %}/usr/bin/numactl --cpunodebind={{ vm.numa_node }} --preferred={{ vm.numa_node }} {% endif %}/usr/bin/qemu-system-x86_64 \
     -m {{ qemu_mem }} -smp {{ qemu_smp }} \
     -machine accel=kvm,type={{ 'q35' if vm_uefi else 'pc' }} -cpu host \
@@ -42,6 +51,10 @@ ExecStart={% if vm.numa_node is defined %}/usr/bin/numactl --cpunodebind={{ vm.n
     -qmp unix:/run/windows-vm-{{ vm.name }}.qmp,server=on,wait=off \
     -netdev user,id=net0,hostfwd=tcp::{{ vm.winrm_port }}-:5985,hostfwd=tcp::{{ vm.ssh_port }}-:22 \
     -device virtio-net,netdev=net0 \
+{% if vm.bridge is defined %}
+    -netdev bridge,id=net1,br={{ vm.bridge }} \
+    -device virtio-net,netdev=net1,mac={{ vm.bridge_mac }} \
+{% endif %}
     -drive file={{ vm.disk }},format=raw,if=virtio,cache=none
 
 # ACPI power button, then wait. Windows Update can make a shutdown take
