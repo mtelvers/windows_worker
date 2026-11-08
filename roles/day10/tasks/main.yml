@@ -8,7 +8,7 @@
 
 # Two sources. With day10_src_tgz set, a `git archive --prefix=day10/`
 # snapshot from the playbook dir is unpacked as C:\day10: the Windows
-# backend navajo runs (4b625e1) is on a main that has not been pushed.
+# backend navajo runs (99de163) is on a main that has not been pushed.
 # Otherwise clone GitHub and pin day10_commit.
 - name: Upload day10 source snapshot
   win_copy:
