@@ -86,6 +86,17 @@
     chdir: c:\ocluster
     creates: c:\ocluster\_opam
 
+# The same Lwt fixes the obuilder worker pins (roles/worker). Stock Lwt
+# starts every child with bInheritHandles=TRUE, so one job's child can hold
+# another job's output pipe open: a day10 job sat for good after its git step
+# had exited. It also hangs on a failed connect, which is how the worker
+# failed to reconnect after a scheduler restart. windows-fixes-v3 restricts
+# inheritance to the child's own handles and reports the failed connect.
+- name: Pin lwt to windows-fixes branch
+  win_command: opam exec -- opam pin add lwt git+https://github.com/mtelvers/lwt.git#windows-fixes-v3 --no-action -y
+  args:
+    chdir: c:\ocluster
+
 # The three packages, not ".": the directory also holds current_ocluster,
 # whose ocurrent dependency tree is not needed for the worker. winsvc, which
 # makes `worker.exe install` a real service, is a win32 dependency of
