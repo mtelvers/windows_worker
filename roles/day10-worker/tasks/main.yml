@@ -41,29 +41,13 @@
   changed_when: "'APPLIED' in stdio_patch.stdout"
   failed_when: stdio_patch.rc != 0
 
-# Cancelling a job sends the child SIGTERM, which Unix.kill cannot do on
-# Windows: the Invalid_argument escaped the cancel hook and took the service
-# down with the first cancelled job. The patch terminates the child instead.
-- name: Upload the cancel patch
-  win_copy:
-    src: process-cancel-win32.patch
-    dest: c:\ocluster\process-cancel-win32.patch
-
-- name: Make job cancellation survive on Windows
-  win_shell: |
-    cd c:\ocluster
-    if (git apply --ignore-whitespace --check --reverse process-cancel-win32.patch 2>$null) { Write-Output "ALREADY" } else { git apply --ignore-whitespace process-cancel-win32.patch; Write-Output "APPLIED" }
-  register: cancel_patch
-  changed_when: "'APPLIED' in cancel_patch.stdout"
-  failed_when: cancel_patch.rc != 0
-
 # Process.exec gave every child [`FD_copy Unix.stdout] as stderr. On Unix
 # that lands in the job log by accident: Lwt applies redirections in the
 # forked child in order, so fd 1 is already the log pipe when it is copied to
 # fd 2. On Windows the handles are resolved in the parent, so it was the
 # worker's own stdout, and day10's [NOTE] success / [ERROR] failure never
 # reached the job log. The patch makes stderr share the stdout pipe by
-# default on every platform. Applies on top of process-cancel-win32.patch.
+# default on every platform. Applies on top of winsvc-stdio.patch.
 - name: Upload the stderr patch
   win_copy:
     src: process-stderr-stdout.patch
@@ -76,6 +60,25 @@
   register: stderr_patch
   changed_when: "'APPLIED' in stderr_patch.stdout"
   failed_when: stderr_patch.rc != 0
+
+# On cancel, interrupt day10 and kill it only after the grace period, the
+# same on every platform: SIGINT on Unix, Ctrl-C on the job's own console on
+# Windows, sent by a helper (worker.exe console-interrupt) so the worker is
+# never attached to it. Applies on top of process-stderr-stdout.patch. These
+# three are commits c8db8e3, 8a9e0f0 and ed9d700 on mtelvers/ocluster's day10
+# branch; drop them once ocluster_day10_commit moves past ed9d700.
+- name: Upload the interrupt patch
+  win_copy:
+    src: worker-interrupt.patch
+    dest: c:\ocluster\worker-interrupt.patch
+
+- name: Interrupt rather than kill a cancelled job
+  win_shell: |
+    cd c:\ocluster
+    if (git apply --ignore-whitespace --check --reverse worker-interrupt.patch 2>$null) { Write-Output "ALREADY" } else { git apply --ignore-whitespace worker-interrupt.patch; Write-Output "APPLIED" }
+  register: interrupt_patch
+  changed_when: "'APPLIED' in interrupt_patch.stdout"
+  failed_when: interrupt_patch.rc != 0
 
 - name: Create opam switch for ocluster
   win_command: opam switch create . {{ day10_ocaml }} --no-install -y

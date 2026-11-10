@@ -8,7 +8,7 @@
 
 # Two sources. With day10_src_tgz set, a `git archive --prefix=day10/`
 # snapshot from the playbook dir is unpacked as C:\day10: the Windows
-# backend navajo runs (99de163) is on a main that has not been pushed.
+# backend navajo runs (3f170dc) is on a main that has not been pushed.
 # Otherwise clone GitHub and pin day10_commit.
 - name: Upload day10 source snapshot
   win_copy:
@@ -40,30 +40,6 @@
   register: day10_pin_result
   changed_when: "'PINNED' in day10_pin_result.stdout"
   when: day10_src_tgz is not defined
-
-# Interrupting day10 on Windows (files/day10-windows-interrupt.patch, until
-# main has it):
-# - Ctrl-Break, the one console event that can be sent to a single process
-#   group, reaches day10's SIGINT handler. OCaml 4.14 mapped it in
-#   caml_win32_signal; OCaml 5 still defines that but no longer calls it, so
-#   Ctrl-Break killed day10 outright and skipped every finaliser.
-# - A blocking ReadFile is not interrupted, so a pending signal fires at the
-#   first safe point after it returns, often the top of a finaliser, before
-#   anything is released. Os.spawn and Cleanup.with_resource now release again
-#   when Fun.protect reports a finaliser cut short (Finally_raised); without it
-#   the build log stayed open and the temp directory could not be removed.
-- name: Upload the day10 interrupt patch
-  win_copy:
-    src: day10-windows-interrupt.patch
-    dest: c:\day10\day10-windows-interrupt.patch
-
-- name: Make day10 interruptible on Windows
-  win_shell: |
-    cd c:\day10
-    if (git apply --ignore-whitespace --check --reverse day10-windows-interrupt.patch 2>$null) { Write-Output "ALREADY" } else { git apply --ignore-whitespace day10-windows-interrupt.patch; Write-Output "APPLIED" }
-  register: day10_patch
-  changed_when: "'APPLIED' in day10_patch.stdout"
-  failed_when: day10_patch.rc != 0
 
 - name: Create opam switch for day10
   win_command: opam switch create . {{ day10_ocaml }} --no-install -y

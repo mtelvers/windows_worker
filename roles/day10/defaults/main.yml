@@ -3,11 +3,9 @@
 # >= 5.3.0, which rules out the 4.14.2 the obuilder worker uses.
 day10_ocaml: ocaml-base-compiler.5.3.0
 
-# mtelvers/day10 main as of 2026-11-08: containers build on their own drive
-# and copy layers out with robocopy, the base falls back to opam's archive
-# cache, ctr is retried while containerd's pipe is busy, and a base that
-# fails to build is no longer kept. Not on GitHub yet (origin/main is
-# ad1a8f6), so navajo takes a snapshot: see day10_src_tgz in
-# provision-navajo.sh.
-day10_commit: 99de1635c598db454a668c9b1825453595fed709
+# mtelvers/day10 main as of 2026-11-10, which includes the fix for a pending
+# signal cutting a finaliser short (3f170dc), so day10 needs no patch here.
+# Not on GitHub yet (origin/main is ad1a8f6), so navajo takes a snapshot:
+# see day10_src_tgz in provision-navajo.sh.
+day10_commit: 3f170dc4a013fd2514ad31cbcadd1ee32757f3ac
 

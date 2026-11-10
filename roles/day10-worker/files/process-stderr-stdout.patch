@@ -1,7 +1,8 @@
-diff -ruN -x _build ocl-base/worker/process.ml ocl-new/worker/process.ml
---- a/worker/process.ml	2026-11-05 14:52:12.426402424 +0000
-+++ b/worker/process.ml	2026-11-06 22:13:17.074030493 +0000
-@@ -22,10 +22,28 @@
+diff --git a/worker/process.ml b/worker/process.ml
+index 322f5f1..deff1b1 100644
+--- a/worker/process.ml
++++ b/worker/process.ml
+@@ -22,10 +22,28 @@ let send_to ch contents =
     follows up with SIGKILL. day10 uses the latter: SIGTERM lets it tear down
     its own runc container, overlay mount and temp directory (its signal handler)
     before exiting, which is what a plain SIGKILL prevented. *)
@@ -32,7 +33,7 @@ diff -ruN -x _build ocl-base/worker/process.ml ocl-new/worker/process.ml
    Lwt_switch.add_hook_or_exec (Some switch) (fun () ->
        if Lwt.state proc#status = Lwt.Sleep then (
          Log.info (fun f -> f "Cancelling %s job…" label);
-@@ -48,7 +66,7 @@
+@@ -43,7 +61,7 @@ let exec ~label ~log ~switch ?env ?(stdin="") ?(stderr=`FD_copy Unix.stdout) ?(i
        Lwt.return_unit
      )
    >>= fun () ->
@@ -41,10 +42,11 @@ diff -ruN -x _build ocl-base/worker/process.ml ocl-new/worker/process.ml
    send_to proc#stdin stdin >>= fun stdin_result ->
    copy_thread >>= fun () -> (* Ensure all data has been copied before returning *)
    proc#status >|= function
-diff -ruN -x _build ocl-base/worker/process.mli ocl-new/worker/process.mli
---- a/worker/process.mli	2026-11-05 10:07:41.325015851 +0000
-+++ b/worker/process.mli	2026-11-06 22:13:17.074030493 +0000
-@@ -7,13 +7,15 @@
+diff --git a/worker/process.mli b/worker/process.mli
+index 54ae608..bc72acc 100644
+--- a/worker/process.mli
++++ b/worker/process.mli
+@@ -7,13 +7,15 @@ type error = [
  (* How to stop the child on cancellation: [`Kill] sends SIGKILL immediately
     (default); [`Terminate_then_kill grace] sends SIGTERM, then SIGKILL only if
     still running after [grace] seconds (lets day10 release its own resources). *)
@@ -61,7 +63,7 @@ diff -ruN -x _build ocl-base/worker/process.mli ocl-new/worker/process.mli
    ?is_success:(int -> bool) ->
    ?on_cancel:[ `Kill | `Terminate_then_kill of float ] ->
    string list ->
-@@ -25,7 +27,7 @@
+@@ -25,7 +27,7 @@ val check_call :
    switch:Lwt_switch.t ->
    ?env:string array ->
    ?stdin:string ->
