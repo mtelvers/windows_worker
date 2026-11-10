@@ -65,8 +65,9 @@
 # same on every platform: SIGINT on Unix, Ctrl-C on the job's own console on
 # Windows, sent by a helper (worker.exe console-interrupt) so the worker is
 # never attached to it. Applies on top of process-stderr-stdout.patch. These
-# three are commits c8db8e3, 8a9e0f0 and ed9d700 on mtelvers/ocluster's day10
-# branch; drop them once ocluster_day10_commit moves past ed9d700.
+# patches are commits c8db8e3, 8a9e0f0, ed9d700, c5a6235 and 2875825 on
+# mtelvers/ocluster's day10 branch; drop them once ocluster_day10_commit moves
+# past 2875825.
 - name: Upload the interrupt patch
   win_copy:
     src: worker-interrupt.patch
@@ -79,6 +80,23 @@
   register: interrupt_patch
   changed_when: "'APPLIED' in interrupt_patch.stdout"
   failed_when: interrupt_patch.rc != 0
+
+# Windows output reaches the job log with "\r\n" or, from opam inside the
+# container, "\r\r\n" line endings; the trailing '\r's render as blank lines
+# and end up inside log-matcher captures. ocluster c5a6235 and 2875825 drop
+# every run of '\r' that ends a line. Applies on top of worker-interrupt.patch.
+- name: Upload the job-log CRLF patch
+  win_copy:
+    src: worker-log-crlf.patch
+    dest: c:\ocluster\worker-log-crlf.patch
+
+- name: Drop the CRs that end lines in the job log
+  win_shell: |
+    cd c:\ocluster
+    if (git apply --ignore-whitespace --check --reverse worker-log-crlf.patch 2>$null) { Write-Output "ALREADY" } else { git apply --ignore-whitespace worker-log-crlf.patch; Write-Output "APPLIED" }
+  register: crlf_patch
+  changed_when: "'APPLIED' in crlf_patch.stdout"
+  failed_when: crlf_patch.rc != 0
 
 - name: Create opam switch for ocluster
   win_command: opam switch create . {{ day10_ocaml }} --no-install -y
