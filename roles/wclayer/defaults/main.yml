@@ -1,0 +1,6 @@
+---
+# hcsshim's wclayer, which day10 uses to mount a container snapshot on the
+# host and fill it before the container starts.  hcsshim publishes no
+# binaries, so it is built here.  v0.15.0 needs Go 1.26.8 or later.
+hcsshim_version: v0.15.0
+wclayer_go_version: 1.26.8

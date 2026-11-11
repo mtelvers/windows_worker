@@ -18,6 +18,7 @@
     - opam
     - capnproto
     - hcn-namespace
+    - { role: wclayer, when: worker_kind == 'day10' }
     - { role: worker, when: worker_kind == 'obuilder' }
     - { role: day10, when: worker_kind == 'day10' }
     - { role: day10-worker, when: worker_kind == 'day10' }

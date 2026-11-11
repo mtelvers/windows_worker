@@ -1,0 +1,35 @@
+---
+# wclayer, built from hcsshim and put on the machine PATH beside ctr and
+# hcn-namespace, where the day10 worker service finds it.  The Go toolchain
+# is unpacked for this build alone.
+
+- name: Download Go for building wclayer
+  win_get_url:
+    url: https://go.dev/dl/go{{ wclayer_go_version }}.windows-amd64.zip
+    dest: c:\windows\temp\go{{ wclayer_go_version }}.windows-amd64.zip
+
+- name: Extract Go
+  win_command: powershell -command "Expand-Archive c:\windows\temp\go{{ wclayer_go_version }}.windows-amd64.zip c:\go{{ wclayer_go_version }}"
+  args:
+    creates: c:\go{{ wclayer_go_version }}\go\bin\go.exe
+
+- name: Clone hcsshim
+  win_command: git clone --depth 1 --branch {{ hcsshim_version }} https://github.com/microsoft/hcsshim c:\hcsshim
+  args:
+    creates: c:\hcsshim
+
+# GOTOOLCHAIN=local, or Go would download a toolchain of its own instead of
+# using the one unpacked above.
+- name: Build wclayer
+  win_command: c:\go{{ wclayer_go_version }}\go\bin\go.exe build -buildvcs=false -o c:\hcsshim\wclayer.exe ./cmd/wclayer
+  args:
+    chdir: c:\hcsshim
+    creates: c:\hcsshim\wclayer.exe
+  environment:
+    GOTOOLCHAIN: local
+
+- name: Copy wclayer to system32
+  win_copy:
+    src: c:\hcsshim\wclayer.exe
+    dest: c:\windows\system32\wclayer.exe
+    remote_src: true
