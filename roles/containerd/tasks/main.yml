@@ -80,6 +80,9 @@
   win_shell: |
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-ExecutionPolicy Bypass -File c:\windows\fix-nat.ps1'
     $trigger = New-ScheduledTaskTrigger -AtStartup
+    # Belt and braces with the retry loop in fix-nat.ps1: the bare -AtStartup
+    # trigger races the HNS service that creates the nat network.
+    $trigger.Delay = 'PT1M'
     $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
     Register-ScheduledTask -TaskName 'SyncCniNatConfig' -Action $action -Trigger $trigger -Principal $principal -Force
   when: worker_kind == 'obuilder'
