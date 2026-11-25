@@ -3,9 +3,9 @@
 # >= 5.3.0, which rules out the 4.14.2 the obuilder worker uses.
 day10_ocaml: ocaml-base-compiler.5.3.0
 
-# mtelvers/day10 main as of 2026-11-10, which includes the fix for a pending
-# signal cutting a finaliser short (3f170dc), so day10 needs no patch here.
-# Not on GitHub yet (origin/main is ad1a8f6), so navajo takes a snapshot:
-# see day10_src_tgz in provision-navajo.sh.
-day10_commit: 3f170dc4a013fd2514ad31cbcadd1ee32757f3ac
+# mtelvers/day10 main as deployed on navajo on 2026-11-25 (b90faf5: HOME in
+# build containers, on top of the depexts start, offline builds, staged
+# sources and the host download cache).  On GitHub, so the role clones it;
+# day10_src_tgz is only for testing an unpushed tree.
+day10_commit: b90faf59693339ead05ffccc8e79ca0c8c1f2cbc
 

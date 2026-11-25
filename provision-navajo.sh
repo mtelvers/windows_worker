@@ -10,6 +10,5 @@ exec stdbuf -oL -eL ansible-playbook playbook.yml \
   -e winver=2025 -e qemu_mem=200G -e qemu_smp=32 \
   -e uefi=true \
   -e worker_kind=day10 \
-  -e day10_src_tgz=day10-3f170dc.tgz \
   -e c_partition_mb=262144 \
   -e '{"vms":[{"name":"ltsc2025-day10","disk":"/dev/nvme0n1","winrm_port":5985,"ssh_port":60022,"vnc_display":0,"numa_node":0,"bridge":"br0","bridge_mac":"52:54:00:e8:22:c7","hyperv":true}]}'

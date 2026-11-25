@@ -1,8 +1,10 @@
 ---
 # mtelvers/ocluster branch day10: upstream ocluster plus a "day10" custom job
 # kind, the --day10-* worker options and a Git mirror of opam-repository
-# under the state dir. 5dc6523 is what the hand-built optiplex worker runs.
-ocluster_day10_commit: 5dc6523379bf7ef75d31c17665367bd7045f0dd2
+# under the state dir. 1d7ca7e (2026-11-16) is what navajo runs: since 5dc6523
+# it sends stdio/stderr to the logs, cancels through a Ctrl-C helper, strips
+# the CRs ending job-log lines and prints arch/os in the dispatch summary.
+ocluster_day10_commit: 1d7ca7ea41b4cfd8137e3dfca03c41b8ca68eb36
 
 # Same switch compiler as the day10 role (whose defaults are not in scope
 # here) so the two builds share opam's download cache.

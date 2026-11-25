@@ -136,6 +136,30 @@
       - c:\users\administrator\appdata\local\opam\.cygwin\root\usr\x86_64-w64-mingw32\sys-root\mingw\bin
     scope: machine
 
+# microsoft/Windows-Containers#663: with the per-volume lazy writer, a
+# container's scratch volume can stay detached for good and every later volume
+# deletion queues behind it, until a reboot (mtelvers/stuff#3, #16, #83).
+# EnablePerVolumeLazyWriter=0 stops the jam, but ReFS does not load with it
+# set: D: vanishes and the service fails at boot with 1053.  So the cache
+# volume must be NTFS, as the autounattend makes it; never reformat it ReFS.
+- name: Check the day10 cache volume is NTFS
+  win_shell: (Get-Volume -DriveLetter {{ day10_cache_dir[0] }}).FileSystem
+  register: day10_cache_fs
+  changed_when: false
+  failed_when: (day10_cache_fs.stdout | trim) != 'NTFS'
+
+- name: Disable the per-volume lazy writer (Windows-Containers#663)
+  win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management
+    name: EnablePerVolumeLazyWriter
+    data: 0
+    type: dword
+  register: lazy_writer
+
+- name: Reboot for the lazy-writer setting, which is read at boot
+  win_reboot:
+  when: lazy_writer.changed
+
 - name: Create day10 cache and state directories
   win_file:
     path: "{{ item }}"
